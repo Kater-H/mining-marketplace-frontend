@@ -2045,7 +2045,7 @@ const App: React.FC = () => {
             memberSince: fetchedUser.created_at ? new Date(fetchedUser.created_at).toLocaleDateString() : 'N/A',
             companyName: fetchedUser.company_name,
             phoneNumber: fetchedUser.phone_number,
-            complianceStatus: fetchedUser.compliance_status, // Include compliance status
+            complianceStatus: fetchedUser.compliance_status || 'pending', // <-- ADDED FALLBACK HERE
           };
           setUser(mappedUser);
           setCurrentView('dashboard');
@@ -2153,7 +2153,7 @@ const App: React.FC = () => {
         mineralType: listing.mineral_type,
         final_price: offer.offer_price,
         final_quantity: offer.offer_quantity,
-        currency: offer.currency,
+        currency: listing.currency,
       };
 
       const paymentResponse = await apiCall('/payments', {
@@ -2743,7 +2743,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
         memberSince: user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A',
         companyName: user.company_name,
         phoneNumber: user.phone_number,
-        complianceStatus: user.compliance_status,
+        complianceStatus: user.compliance_status || 'pending', // <-- ADDED FALLBACK HERE
       }));
       setUsers(mappedUsers);
     } catch (err) {
