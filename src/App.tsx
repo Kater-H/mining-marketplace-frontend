@@ -37,7 +37,7 @@ interface User {
   email: string;
   role: 'buyer' | 'miner' | 'admin';
   emailVerified: boolean;
-  memberSince: string;
+  memberSince: string; // Assuming a string date like "January 15, 2024"
   companyName?: string;
   phoneNumber?: string;
   // NEW: Add complianceStatus
@@ -1240,7 +1240,8 @@ const OffersForListing: React.FC<{
   const fetchOffers = async () => {
     try {
       setIsLoading(true);
-      const data = await apiCall(`/marketplace/listings/${listingId}/offers`);
+      // THIS IS THE LINE THAT NEEDS TO BE CORRECTED
+      const data = await apiCall(`/marketplace/offers/listing/${listingId}`); // CORRECTED LINE
       setOffers(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch offers for this listing");
@@ -2691,12 +2692,12 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
           <div>
             <label className="form-label">Email</label>
             <input
-              type="email"
-              name="email"
-              className="form-input"
-              value={formData.email}
-              onChange={handleChange}
-              required
+                type="email"
+                name="email"
+                className="form-input"
+                value={formData.email}
+                onChange={handleChange}
+                required
             />
           </div>
           <button type="submit" className="btn-primary w-full" disabled={isLoading}>
