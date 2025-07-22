@@ -166,6 +166,14 @@ const MessageBox: React.FC<MessageBoxProps> = ({ message, type, onClose }) => {
   );
 };
 
+// --- Generic Loading Spinner Component ---
+const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading..." }) => (
+  <div className="min-h-screen bg-gray-100 flex items-center justify-center flex-col">
+    <div className="loading-spinner w-12 h-12 text-blue-600 mb-4"></div>
+    <p className="text-gray-700">{message}</p>
+  </div>
+);
+
 
 // --- Component Definitions ---
 
@@ -1210,9 +1218,9 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
 
               {offer.status === 'accepted' && (
                 <button
-                  onClick={() => handleProceedToPaymentClick(offer)}
+                  onClick={() => handleUpdateOfferStatus(offer.id, 'completed')}
                   className="btn-success w-full"
-                  disabled={user.complianceStatus !== 'compliant'} // Disable if not compliant
+                  disabled={actionLoading === offer.id}
                 >
                   {actionLoading === offer.id ? (
                     <div className="loading-spinner w-4 h-4 mr-2"></div>
@@ -1854,8 +1862,8 @@ const App: React.FC = () => {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [offersChangedCounter, setOffersChangedCounter] = useState(0);
-  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
-  const [authLoading, setAuthLoading] = useState(true); // NEW: State to track authentication loading
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); // Correctly declared here
+  const [authLoading, setAuthLoading] = useState(true); 
 
   // Centralized listings state
   const [listings, setListings] = useState<Listing[]>([]);
@@ -1878,17 +1886,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadUserFromToken = async () => {
-      setAuthLoading(true); // Set auth loading to true at the start
+      setAuthLoading(true); 
       const token = localStorage.getItem('authToken');
       const params = new URLSearchParams(window.location.search);
       if (params.get('transaction_id') && window.location.pathname.includes('/success')) {
         setCurrentView('payment-success');
-        setAuthLoading(false); // Done loading for payment redirect
+        setAuthLoading(false); 
         return;
       }
       if (params.get('transaction_id') && window.location.pathname.includes('/cancel')) {
         setCurrentView('payment-cancel');
-        setAuthLoading(false); // Done loading for payment redirect
+        setAuthLoading(false); 
         return;
       }
 
@@ -1920,11 +1928,11 @@ const App: React.FC = () => {
           setUser(null);
           setCurrentView('login');
         } finally {
-          setAuthLoading(false); // Set auth loading to false when done
+          setAuthLoading(false); 
         }
       } else {
         setCurrentView('login');
-        setAuthLoading(false); // Set auth loading to false if no token
+        setAuthLoading(false); 
       }
     };
     loadUserFromToken();
@@ -2077,12 +2085,7 @@ const App: React.FC = () => {
 
   // NEW: Render a loading spinner while authentication is in progress
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="loading-spinner w-12 h-12 text-blue-600"></div>
-        <p className="ml-4 text-gray-700">Loading application...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading application..." />;
   }
 
   // If not loading and no user, show login/register forms
@@ -2272,6 +2275,7 @@ const App: React.FC = () => {
           />
         )}
       </main>
+      {/* MessageBox rendering at the root level of App component */}
       {messageBox && (
         <MessageBox
           message={messageBox.message}
@@ -2604,7 +2608,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingUserId, setActionLoadingUserId] = useState<number | null>(null);
-  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); // Correctly declared here
 
   const fetchAllUsers = useCallback(async () => {
     try {
