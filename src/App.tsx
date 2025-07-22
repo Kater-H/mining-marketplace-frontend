@@ -194,18 +194,18 @@ const LoginForm: React.FC<{
 
       const loggedInUser: User = {
         id: response.user.id,
-        firstName: response.user.firstName, // <-- Corrected to camelCase
-        lastName: response.user.lastName,   // <-- Corrected to camelCase
+        firstName: response.user.firstName, 
+        lastName: response.user.lastName,   
         email: response.user.email,
         role: response.user.role,
-        emailVerified: response.user.emailVerified, // <-- Corrected to camelCase
-        memberSince: response.user.memberSince, // <-- Corrected to camelCase
-        companyName: response.user.companyName, // Already camelCase
-        phoneNumber: response.user.phoneNumber, // Already camelCase
-        complianceStatus: response.user.complianceStatus, // <-- Corrected to camelCase
+        emailVerified: response.user.emailVerified, 
+        memberSince: response.user.memberSince,     
+        companyName: response.user.companyName, 
+        phoneNumber: response.user.phoneNumber, 
+        complianceStatus: response.user.complianceStatus, 
       };
-      console.log("Frontend: User data received on successful login from backend:", response.user); // DEBUG LOG
-      console.log("Frontend: Mapped user data on successful login:", loggedInUser); // DEBUG LOG
+      console.log("Frontend: User data received on successful login from backend:", response.user); 
+      console.log("Frontend: Mapped user data on successful login:", loggedInUser); 
       onLogin(loggedInUser);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -808,7 +808,7 @@ const ListingDetail: React.FC<{
     const proposedAmount = parseFloat(offerData.offerAmount);
 
     if (proposedAmount < minAmount) {
-      setOfferError(`Offer amount must be at least ${listing.currency} ${minAmount.toFixed(2)} due to payment gateway minimums.`);
+      setOfferError(`Offer amount must be at least ${listing.currency} ${minAmount.toFixed(2)} due1 to payment gateway minimums.`);
       setIsSubmittingOffer(false);
       return;
     }
@@ -1210,9 +1210,9 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
 
               {offer.status === 'accepted' && (
                 <button
-                  onClick={() => handleUpdateOfferStatus(offer.id, 'completed')}
+                  onClick={() => handleProceedToPaymentClick(offer)}
                   className="btn-success w-full"
-                  disabled={actionLoading === offer.id}
+                  disabled={user.complianceStatus !== 'compliant'} // Disable if not compliant
                 >
                   {actionLoading === offer.id ? (
                     <div className="loading-spinner w-4 h-4 mr-2"></div>
@@ -1294,7 +1294,7 @@ const CreateListingForm: React.FC<{ user: User; onListingCreated: () => void; se
 
     // Frontend compliance check for sellers creating listings
     if (user.role === 'miner' && user.complianceStatus !== 'compliant') {
-      setError(`You must be compliant to create a listing. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`); // <-- ADDED FALLBACK HERE
+      setError(`You must be compliant to create a listing. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`); 
       setIsLoading(false);
       return;
     }
@@ -1674,7 +1674,7 @@ const EditListingForm: React.FC<{
 
     // Frontend compliance check for sellers editing listings
     if (user.role === 'miner' && user.complianceStatus !== 'compliant') {
-      setError(`You must be compliant to edit a listing. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`); // <-- ADDED FALLBACK HERE
+      setError(`You must be compliant to edit a listing. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`); 
       setIsLoading(false);
       return;
     }
@@ -1855,6 +1855,7 @@ const App: React.FC = () => {
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [offersChangedCounter, setOffersChangedCounter] = useState(0);
   const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true); // NEW: State to track authentication loading
 
   // Centralized listings state
   const [listings, setListings] = useState<Listing[]>([]);
@@ -1877,35 +1878,38 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadUserFromToken = async () => {
+      setAuthLoading(true); // Set auth loading to true at the start
       const token = localStorage.getItem('authToken');
       const params = new URLSearchParams(window.location.search);
       if (params.get('transaction_id') && window.location.pathname.includes('/success')) {
         setCurrentView('payment-success');
+        setAuthLoading(false); // Done loading for payment redirect
         return;
       }
       if (params.get('transaction_id') && window.location.pathname.includes('/cancel')) {
         setCurrentView('payment-cancel');
+        setAuthLoading(false); // Done loading for payment redirect
         return;
       }
 
       if (token) {
         try {
           const fetchedUser = await apiCall('/users/profile');
-          console.log("Frontend: Raw user data fetched on refresh/initial load:", fetchedUser); // ADDED DEBUG LOG
+          console.log("Frontend: Raw user data fetched on refresh/initial load:", fetchedUser); 
 
           const mappedUser: User = {
             id: fetchedUser.id,
-            firstName: fetchedUser.firstName, // <-- Corrected to camelCase
-            lastName: fetchedUser.lastName,   // <-- Corrected to camelCase
+            firstName: fetchedUser.firstName, 
+            lastName: fetchedUser.lastName,   
             email: fetchedUser.email,
             role: fetchedUser.role,
-            emailVerified: fetchedUser.emailVerified, // <-- Corrected to camelCase
-            memberSince: fetchedUser.memberSince,     // <-- Corrected to camelCase
-            companyName: fetchedUser.companyName, // Already camelCase
-            phoneNumber: fetchedUser.phoneNumber, // Already camelCase
-            complianceStatus: fetchedUser.complianceStatus || 'pending', // <-- Corrected to camelCase, and kept fallback
+            emailVerified: fetchedUser.emailVerified, 
+            memberSince: fetchedUser.memberSince,     
+            companyName: fetchedUser.companyName, 
+            phoneNumber: fetchedUser.phoneNumber, 
+            complianceStatus: fetchedUser.complianceStatus || 'pending', 
           };
-          console.log("Frontend: Mapped user data after refresh/initial load:", mappedUser); // ADDED DEBUG LOG
+          console.log("Frontend: Mapped user data after refresh/initial load:", mappedUser); 
 
           setUser(mappedUser);
           setCurrentView('dashboard');
@@ -1915,9 +1919,12 @@ const App: React.FC = () => {
           localStorage.removeItem('authToken');
           setUser(null);
           setCurrentView('login');
+        } finally {
+          setAuthLoading(false); // Set auth loading to false when done
         }
       } else {
         setCurrentView('login');
+        setAuthLoading(false); // Set auth loading to false if no token
       }
     };
     loadUserFromToken();
@@ -1925,7 +1932,7 @@ const App: React.FC = () => {
 
 
   const handleLogin = (userData: User) => {
-    console.log("Frontend: User data received on successful login from backend (already mapped):", userData); // ADDED DEBUG LOG
+    console.log("Frontend: User data received on successful login from backend (already mapped):", userData); 
     setUser(userData);
     setCurrentView('dashboard');
     fetchAllListings();
@@ -2068,7 +2075,17 @@ const App: React.FC = () => {
     // No need to change view, stay on admin-users
   };
 
+  // NEW: Render a loading spinner while authentication is in progress
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="loading-spinner w-12 h-12 text-blue-600"></div>
+        <p className="ml-4 text-gray-700">Loading application...</p>
+      </div>
+    );
+  }
 
+  // If not loading and no user, show login/register forms
   if (!user) {
     const params = new URLSearchParams(window.location.search);
     if (params.get('transaction_id') && window.location.pathname.includes('/success')) {
@@ -2596,15 +2613,15 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
       // Map BackendUser to Frontend User for display
       const mappedUsers: User[] = data.map((user: any) => ({
         id: user.id,
-        firstName: user.firstName, // <-- Corrected to camelCase
-        lastName: user.lastName,   // <-- Corrected to camelCase
+        firstName: user.firstName, 
+        lastName: user.lastName,   
         email: user.email,
         role: user.role,
-        emailVerified: user.emailVerified, // <-- Corrected to camelCase
-        memberSince: user.memberSince,     // <-- Corrected to camelCase
-        companyName: user.companyName, // Already camelCase
-        phoneNumber: user.phoneNumber, // Already camelCase
-        complianceStatus: user.complianceStatus || 'pending', // <-- Corrected to camelCase, and kept fallback
+        emailVerified: user.emailVerified, 
+        memberSince: user.memberSince,     
+        companyName: user.companyName, 
+        phoneNumber: user.phoneNumber, 
+        complianceStatus: user.complianceStatus || 'pending', 
       }));
       setUsers(mappedUsers);
     } catch (err) {
