@@ -1307,8 +1307,8 @@ const OffersForListing: React.FC<{
         method: "PUT",
         body: JSON.stringify({ status }),
       });
-      // The backend response for this endpoint should ideally return the updated offer.
-      // If it returns the user, we need to adjust this. For now, assuming it returns the updated offer.
+      // Update the user in the local state
+      // Assuming response.user contains the updated user object with camelCase keys
       setMessageBox({ message: `Offer ${offerId} successfully ${status}!`, type: "success" });
       fetchOffers(); // Re-fetch offers to update the list
       onOfferStatusChange(); // Notify parent (App) if needed
@@ -2206,8 +2206,8 @@ const App: React.FC = () => {
         offer_id: offer.id,
         seller_id: listing.seller_id,
         mineralType: listing.mineral_type,
-        // Ensure final_price is formatted to 2 decimal places to avoid precision issues
-        final_price: parseFloat(offer.offer_price.toFixed(2)), 
+        // Ensure offer.offer_price is a number before calling toFixed, then parse back to float
+        final_price: parseFloat(Number(offer.offer_price).toFixed(2)), 
         final_quantity: offer.offer_quantity,
         currency: listing.currency,
       };
