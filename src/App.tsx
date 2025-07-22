@@ -1276,7 +1276,7 @@ const OffersForListing: React.FC<{
   const [offers, setOffers] = useState<Offer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null); // ADDED: actionLoading state for this component
   const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
 
   const fetchOffers = async () => {
@@ -2206,7 +2206,8 @@ const App: React.FC = () => {
         offer_id: offer.id,
         seller_id: listing.seller_id,
         mineralType: listing.mineral_type,
-        final_price: offer.offer_price,
+        // Ensure final_price is formatted to 2 decimal places to avoid precision issues
+        final_price: parseFloat(offer.offer_price.toFixed(2)), 
         final_quantity: offer.offer_quantity,
         currency: listing.currency,
       };
