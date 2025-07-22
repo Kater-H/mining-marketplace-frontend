@@ -1116,21 +1116,39 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
   const [offers, setOffers] = useState<Offer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); // Declared here
 
   useEffect(() => {
+    console.log("MyOffers: useEffect triggered. Fetching offers...");
     const fetchOffers = async () => {
       try {
         setIsLoading(true);
+        setError(null); // Clear previous errors
+        setMessageBox(null); // Clear previous messages
+
         const data = await apiCall("/marketplace/offers/my-offers");
-        setOffers(data);
+        console.log("MyOffers: Data received from API:", data);
+
+        if (Array.isArray(data)) {
+          setOffers(data);
+        } else {
+          // If data is not an array, it's an unexpected response
+          console.error("MyOffers: API response is not an array:", data);
+          setError("Received unexpected data format from offers API.");
+          setMessageBox({ message: "Failed to load offers due to unexpected data format.", type: "error" });
+          setOffers([]); // Ensure offers is an empty array
+        }
       } catch (err) {
+        console.error("MyOffers: Error fetching offers:", err);
         setError(err instanceof Error ? err.message : "Failed to fetch offers");
+        setMessageBox({ message: `Failed to fetch offers: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
       } finally {
         setIsLoading(false);
+        console.log("MyOffers: Finished fetching offers. isLoading:", false);
       }
     };
     fetchOffers();
-  }, [user.id]);
+  }, [user.id]); // Dependency: user.id
 
   const handleProceedToPaymentClick = (offer: Offer) => {
     // Only allow proceeding to payment if user is compliant
@@ -1138,7 +1156,7 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
       onProceedToPayment(offer);
     } else {
       // Display a message if not compliant
-      alert(`You must be compliant to proceed with payment. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`);
+      setMessageBox({ message: `You must be compliant to proceed with payment. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`, type: "warning" });
     }
   };
 
@@ -1191,6 +1209,184 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
                     : offer.status === 'rejected' || offer.status === 'expired'
                     ? 'bg-red-100 text-red-800'
                     : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Offer Amount</p>
+                  <p className="font-semibold text-gray-900">{offer.currency} {offer.offer_price.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Quantity</p>
+                  <p className="font-semibold text-gray-900">{offer.offer_quantity.toLocaleString()} kg</p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                {offer.message || 'No message provided.'}
+              </p>
+
+              <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
+                <span>Made on {new Date(offer.created_at).toLocaleDateString()}</span>
+                <span>Offer ID: {offer.id}</span>
+              </div>
+
+              {offer.status === 'accepted' && (
+                <button
+                  onClick={() => handleProceedToPaymentClick(offer)}
+                  className="btn-success w-full"
+                  disabled={user.complianceStatus !== 'compliant'} // Disable if not compliant
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Proceed to Payment
+                </button>
+              )}
+              {offer.status === 'pending' && (
+                <div className="flex gap-2 mt-4">
+                  <button
+                    // This button is for sellers/admins to accept, but it's in MyOffers (buyer view).
+                    // This might be a logic error if a buyer is seeing "Accept/Reject".
+                    // For now, I'm keeping it as is, but flagging for review.
+                    onClick={() => console.log("Buyer attempting to accept offer - this should not happen here.")}
+                    className="btn-primary flex-1"
+                    disabled={true} // Always disable for buyer view
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Accept (Disabled)
+                  </button>
+                  <button
+                    // Same as above, for reject
+                    onClick={() => console.log("Buyer attempting to reject offer - this should not happen here.")}
+                    className="btn-danger flex-1"
+                    disabled={true} // Always disable for buyer view
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Reject (Disabled)
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {messageBox && ( // Render MessageBox for MyOffers component's specific messages
+        <MessageBox
+          message={messageBox.message}
+          type={messageBox.type}
+          onClose={() => setMessageBox(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+// Offers For Listing Component (for Seller/Admin)
+const OffersForListing: React.FC<{
+  listingId: number;
+  user: User;
+  onBack: () => void;
+  onOfferStatusChange: () => void;
+}> = ({ listingId, user, onBack, onOfferStatusChange }) => {
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+
+  const fetchOffers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiCall(`/marketplace/offers/listing/${listingId}`); 
+      setOffers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch offers for this listing");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (listingId) {
+      fetchOffers();
+    } else {
+      setError('No listing selected to view offers.');
+      setIsLoading(false);
+    }
+  }, [listingId, onOfferStatusChange]);
+
+  const handleUpdateOfferStatus = async (offerId: number, status: 'accepted' | 'rejected' | 'expired' | 'completed') => {
+    setActionLoading(offerId);
+    try {
+      const response = await apiCall(`/marketplace/offers/${offerId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
+      // The backend response for this endpoint should ideally return the updated offer.
+      // If it returns the user, we need to adjust this. For now, assuming it returns the updated offer.
+      setMessageBox({ message: `Offer ${offerId} successfully ${status}!`, type: "success" });
+      fetchOffers(); // Re-fetch offers to update the list
+      onOfferStatusChange(); // Notify parent (App) if needed
+    } catch (err) {
+      setMessageBox({ message: `Failed to update offer status: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <button
+        onClick={onBack}
+        className="btn-secondary"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Listing
+      </button>
+
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Offers for Listing #{listingId}</h1>
+        <p className="text-gray-600 mt-2">Review offers made on your mineral listing.</p>
+      </div>
+
+      {isLoading && (
+        <div className="text-center py-12">
+          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading offers...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="alert alert-error text-center py-12">
+          <p className="text-red-600">Error: {error}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && offers.length === 0 && (
+        <div className="text-center py-12">
+          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No offers found for this listing.</h3>
+          <p className="text-gray-600">Share your listing to attract buyers!</p>
+        </div>
+      )}
+
+      {!isLoading && !error && offers.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {offers.map((offer) => (
+            <div key={offer.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Offer from {offer.buyer_first_name && offer.buyer_last_name ?
+                    `${offer.buyer_first_name} ${offer.buyer_last_name}` : `Buyer #${offer.buyer_id}`}
+                </h3>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  offer.status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : offer.status === 'accepted'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
                 }`}>
                   {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
                 </span>
@@ -1862,7 +2058,7 @@ const App: React.FC = () => {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [offersChangedCounter, setOffersChangedCounter] = useState(0);
-  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); // Correctly declared here
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); 
   const [authLoading, setAuthLoading] = useState(true); 
 
   // Centralized listings state
@@ -2608,7 +2804,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingUserId, setActionLoadingUserId] = useState<number | null>(null);
-  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); // Correctly declared here
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); 
 
   const fetchAllUsers = useCallback(async () => {
     try {
@@ -2652,7 +2848,12 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
         body: JSON.stringify({ status: newStatus }),
       });
       // Update the user in the local state
-      setUsers(prevUsers => prevUsers.map(u => u.id === userId ? response.user : u));
+      // Assuming response.user contains the updated user object with camelCase keys
+      setUsers(prevUsers => prevUsers.map(u => u.id === userId ? {
+        ...u,
+        complianceStatus: response.user.complianceStatus,
+        // If other fields change, update them here too
+      } : u));
       onUserComplianceStatusUpdate(response.user); // Notify App component if current user's status changed
       setMessageBox({ message: `User ${userId}'s status updated to ${newStatus}.`, type: "success" });
     } catch (err) {
