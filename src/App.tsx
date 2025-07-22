@@ -194,15 +194,15 @@ const LoginForm: React.FC<{
 
       const loggedInUser: User = {
         id: response.user.id,
-        firstName: response.user.first_name,
-        lastName: response.user.last_name,
+        firstName: response.user.firstName, // <-- Corrected to camelCase
+        lastName: response.user.lastName,   // <-- Corrected to camelCase
         email: response.user.email,
         role: response.user.role,
-        emailVerified: response.user.email_verified,
-        memberSince: response.user.created_at ? new Date(response.user.created_at).toLocaleDateString() : 'N/A',
-        companyName: response.user.company_name,
-        phoneNumber: response.user.phone_number,
-        complianceStatus: response.user.compliance_status, // Include compliance status
+        emailVerified: response.user.emailVerified, // <-- Corrected to camelCase
+        memberSince: response.user.memberSince, // <-- Corrected to camelCase
+        companyName: response.user.companyName, // Already camelCase
+        phoneNumber: response.user.phoneNumber, // Already camelCase
+        complianceStatus: response.user.complianceStatus, // <-- Corrected to camelCase
       };
       console.log("Frontend: User data received on successful login from backend:", response.user); // DEBUG LOG
       console.log("Frontend: Mapped user data on successful login:", loggedInUser); // DEBUG LOG
@@ -1210,152 +1210,6 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
 
               {offer.status === 'accepted' && (
                 <button
-                  onClick={() => handleProceedToPaymentClick(offer)}
-                  className="btn-success w-full"
-                  disabled={user.complianceStatus !== 'compliant'} // Disable if not compliant
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Proceed to Payment
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Offers For Listing Component (for Seller/Admin)
-const OffersForListing: React.FC<{
-  listingId: number;
-  user: User;
-  onBack: () => void;
-  onOfferStatusChange: () => void;
-}> = ({ listingId, user, onBack, onOfferStatusChange }) => {
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
-
-  const fetchOffers = async () => {
-    try {
-      setIsLoading(true);
-      // THIS IS THE LINE THAT NEEDS TO BE CORRECTED
-      const data = await apiCall(`/marketplace/offers/listing/${listingId}`); // CORRECTED LINE
-      setOffers(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch offers for this listing");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (listingId) {
-      fetchOffers();
-    } else {
-      setError('No listing selected to view offers.');
-      setIsLoading(false);
-    }
-  }, [listingId, onOfferStatusChange]);
-
-  const handleUpdateOfferStatus = async (offerId: number, status: 'accepted' | 'rejected' | 'expired' | 'completed') => {
-    setActionLoading(offerId);
-    try {
-      await apiCall(`/marketplace/offers/${offerId}/status`, {
-        method: "PUT",
-        body: JSON.stringify({ status }),
-      });
-      setMessageBox({ message: `Offer ${offerId} successfully ${status}!`, type: "success" });
-      fetchOffers();
-      onOfferStatusChange();
-    } catch (err) {
-      setMessageBox({ message: `Failed to update offer status: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <button
-        onClick={onBack}
-        className="btn-secondary"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Listing
-      </button>
-
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Offers for Listing #{listingId}</h1>
-        <p className="text-gray-600 mt-2">Review offers made on your mineral listing.</p>
-      </div>
-
-      {isLoading && (
-        <div className="text-center py-12">
-          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading offers...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="alert alert-error text-center py-12">
-          <p className="text-red-600">Error: {error}</p>
-        </div>
-      )}
-
-      {!isLoading && !error && offers.length === 0 && (
-        <div className="text-center py-12">
-          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No offers found for this listing.</h3>
-          <p className="text-gray-600">Share your listing to attract buyers!</p>
-        </div>
-      )}
-
-      {!isLoading && !error && offers.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {offers.map((offer) => (
-            <div key={offer.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Offer from {offer.buyer_first_name && offer.buyer_last_name ?
-                    `${offer.buyer_first_name} ${offer.buyer_last_name}` : `Buyer #${offer.buyer_id}`}
-                </h3>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  offer.status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : offer.status === 'accepted'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-sm text-gray-600">Offer Amount</p>
-                  <p className="font-semibold text-gray-900">{offer.currency} {offer.offer_price.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Quantity</p>
-                  <p className="font-semibold text-gray-900">{offer.offer_quantity.toLocaleString()} kg</p>
-                </div>
-              </div>
-
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                {offer.message || 'No message provided.'}
-              </p>
-
-              <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
-                <span>Made on {new Date(offer.created_at).toLocaleDateString()}</span>
-                <span>Offer ID: {offer.id}</span>
-              </div>
-
-              {offer.status === 'accepted' && (
-                <button
                   onClick={() => handleUpdateOfferStatus(offer.id, 'completed')}
                   className="btn-success w-full"
                   disabled={actionLoading === offer.id}
@@ -2041,15 +1895,15 @@ const App: React.FC = () => {
 
           const mappedUser: User = {
             id: fetchedUser.id,
-            firstName: fetchedUser.first_name,
-            lastName: fetchedUser.last_name,
+            firstName: fetchedUser.firstName, // <-- Corrected to camelCase
+            lastName: fetchedUser.lastName,   // <-- Corrected to camelCase
             email: fetchedUser.email,
             role: fetchedUser.role,
-            emailVerified: fetchedUser.email_verified,
-            memberSince: fetchedUser.created_at ? new Date(fetchedUser.created_at).toLocaleDateString() : 'N/A',
-            companyName: fetchedUser.company_name,
-            phoneNumber: fetchedUser.phone_number,
-            complianceStatus: fetchedUser.compliance_status || 'pending', // <-- ADDED FALLBACK HERE
+            emailVerified: fetchedUser.emailVerified, // <-- Corrected to camelCase
+            memberSince: fetchedUser.memberSince,     // <-- Corrected to camelCase
+            companyName: fetchedUser.companyName, // Already camelCase
+            phoneNumber: fetchedUser.phoneNumber, // Already camelCase
+            complianceStatus: fetchedUser.complianceStatus || 'pending', // <-- Corrected to camelCase, and kept fallback
           };
           console.log("Frontend: Mapped user data after refresh/initial load:", mappedUser); // ADDED DEBUG LOG
 
@@ -2742,15 +2596,15 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
       // Map BackendUser to Frontend User for display
       const mappedUsers: User[] = data.map((user: any) => ({
         id: user.id,
-        firstName: user.first_name,
-        lastName: user.last_name,
+        firstName: user.firstName, // <-- Corrected to camelCase
+        lastName: user.lastName,   // <-- Corrected to camelCase
         email: user.email,
         role: user.role,
-        emailVerified: user.email_verified,
-        memberSince: user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A',
-        companyName: user.company_name,
-        phoneNumber: user.phone_number,
-        complianceStatus: user.compliance_status || 'pending', // <-- ADDED FALLBACK HERE
+        emailVerified: user.emailVerified, // <-- Corrected to camelCase
+        memberSince: user.memberSince,     // <-- Corrected to camelCase
+        companyName: user.companyName, // Already camelCase
+        phoneNumber: user.phoneNumber, // Already camelCase
+        complianceStatus: user.complianceStatus || 'pending', // <-- Corrected to camelCase, and kept fallback
       }));
       setUsers(mappedUsers);
     } catch (err) {
@@ -2779,7 +2633,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
       // Update the user in the local state
       setUsers(prevUsers => prevUsers.map(u => u.id === userId ? response.user : u));
       onUserComplianceStatusUpdate(response.user); // Notify App component if current user's status changed
-      setMessageBox({ message: `User ${userId}'s status updated to ${newStatus}.`, type: 'success' });
+      setMessageBox({ message: `User ${userId}'s status updated to ${newStatus}.`, type: "success" });
     } catch (err) {
       setMessageBox({ message: `Failed to update user status: ${err instanceof Error ? err.message : 'Unknown error'}.`, type: 'error' });
     } finally {
