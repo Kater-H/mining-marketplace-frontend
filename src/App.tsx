@@ -1116,7 +1116,8 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
   const [offers, setOffers] = useState<Offer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); // Declared here
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null); 
+  const [actionLoading, setActionLoading] = useState<number | null>(null); // ADDED: actionLoading state for this component
 
   useEffect(() => {
     console.log("MyOffers: useEffect triggered. Fetching offers...");
@@ -1234,40 +1235,22 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
                 <span>Offer ID: {offer.id}</span>
               </div>
 
+              {/* Corrected logic for buyer's MyOffers view */}
               {offer.status === 'accepted' && (
                 <button
                   onClick={() => handleProceedToPaymentClick(offer)}
                   className="btn-success w-full"
-                  disabled={user.complianceStatus !== 'compliant'} // Disable if not compliant
+                  disabled={user.complianceStatus !== 'compliant' || actionLoading === offer.id} // Disable if not compliant or loading
                 >
-                  <CreditCard className="w-4 h-4 mr-2" />
+                  {actionLoading === offer.id ? (
+                    <div className="loading-spinner w-4 h-4 mr-2"></div>
+                  ) : (
+                    <CreditCard className="w-4 h-4 mr-2" />
+                  )}
                   Proceed to Payment
                 </button>
               )}
-              {offer.status === 'pending' && (
-                <div className="flex gap-2 mt-4">
-                  <button
-                    // This button is for sellers/admins to accept, but it's in MyOffers (buyer view).
-                    // This might be a logic error if a buyer is seeing "Accept/Reject".
-                    // For now, I'm keeping it as is, but flagging for review.
-                    onClick={() => console.log("Buyer attempting to accept offer - this should not happen here.")}
-                    className="btn-primary flex-1"
-                    disabled={true} // Always disable for buyer view
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Accept (Disabled)
-                  </button>
-                  <button
-                    // Same as above, for reject
-                    onClick={() => console.log("Buyer attempting to reject offer - this should not happen here.")}
-                    className="btn-danger flex-1"
-                    disabled={true} // Always disable for buyer view
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Reject (Disabled)
-                  </button>
-                </div>
-              )}
+              {/* Removed Accept/Reject buttons from buyer's MyOffers view as they are for sellers/admins */}
             </div>
           ))}
         </div>
