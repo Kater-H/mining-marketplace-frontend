@@ -93,8 +93,8 @@ interface Transaction {
   transaction_date: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
   payment_gateway_id?: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Base URL for your backend API
@@ -1395,53 +1395,27 @@ const OffersForListing: React.FC<{
                 <span>Offer ID: {offer.id}</span>
               </div>
 
+              {/* Corrected logic for buyer's MyOffers view */}
               {offer.status === 'accepted' && (
                 <button
-                  onClick={() => handleUpdateOfferStatus(offer.id, 'completed')}
+                  onClick={() => handleProceedToPaymentClick(offer)}
                   className="btn-success w-full"
-                  disabled={actionLoading === offer.id}
+                  disabled={user.complianceStatus !== 'compliant' || actionLoading === offer.id} // Disable if not compliant or loading
                 >
                   {actionLoading === offer.id ? (
                     <div className="loading-spinner w-4 h-4 mr-2"></div>
                   ) : (
                     <CreditCard className="w-4 h-4 mr-2" />
                   )}
-                  Mark as Completed
+                  Proceed to Payment
                 </button>
               )}
-              {offer.status === 'pending' && (
-                <div className="flex gap-2 mt-4">
-                  <button
-                    onClick={() => handleUpdateOfferStatus(offer.id, 'accepted')}
-                    className="btn-primary flex-1"
-                    disabled={actionLoading === offer.id}
-                  >
-                    {actionLoading === offer.id ? (
-                      <div className="loading-spinner w-4 h-4 mr-2"></div>
-                    ) : (
-                      <Check className="w-4 h-4 mr-2" />
-                    )}
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => handleUpdateOfferStatus(offer.id, 'rejected')}
-                    className="btn-danger flex-1"
-                    disabled={actionLoading === offer.id}
-                  >
-                    {actionLoading === offer.id ? (
-                      <div className="loading-spinner w-4 h-4 mr-2"></div>
-                    ) : (
-                      <X className="w-4 h-4 mr-2" />
-                    )}
-                    Reject
-                  </button>
-                </div>
-              )}
+              {/* Removed Accept/Reject buttons from buyer's MyOffers view as they are for sellers/admins */}
             </div>
           ))}
         </div>
       )}
-      {messageBox && (
+      {messageBox && ( // Render MessageBox for MyOffers component's specific messages
         <MessageBox
           message={messageBox.message}
           type={messageBox.type}
@@ -1452,6 +1426,325 @@ const OffersForListing: React.FC<{
   );
 };
 
+// Offers For Listing Component (for Seller/Admin)
+const OffersForListing: React.FC<{
+  listingId: number;
+  user: User;
+  onBack: () => void;
+  onOfferStatusChange: () => void;
+}> = ({ listingId, user, onBack, onOfferStatusChange }) => {
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null); // ADDED: actionLoading state for this component
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+
+  const fetchOffers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiCall(`/marketplace/offers/listing/${listingId}`); 
+      setOffers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch offers for this listing");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (listingId) {
+      fetchOffers();
+    } else {
+      setError('No listing selected to view offers.');
+      setIsLoading(false);
+    }
+  }, [listingId, onOfferStatusChange]);
+
+  const handleUpdateOfferStatus = async (offerId: number, status: 'accepted' | 'rejected' | 'expired' | 'completed') => {
+    setActionLoading(offerId);
+    try {
+      const response = await apiCall(`/marketplace/offers/${offerId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
+      // Update the user in the local state
+      // Assuming response.user contains the updated user object with camelCase keys
+      setMessageBox({ message: `Offer ${offerId} successfully ${status}!`, type: "success" });
+      fetchOffers(); // Re-fetch offers to update the list
+      onOfferStatusChange(); // Notify parent (App) if needed
+    } catch (err) {
+      setMessageBox({ message: `Failed to update offer status: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <button
+        onClick={onBack}
+        className="btn-secondary"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Listing
+      </button>
+
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Offers for Listing #{listingId}</h1>
+        <p className="text-gray-600 mt-2">Review offers made on your mineral listing.</p>
+      </div>
+
+      {isLoading && (
+        <div className="text-center py-12">
+          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading offers...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="alert alert-error text-center py-12">
+          <p className="text-red-600">Error: {error}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && offers.length === 0 && (
+        <div className="text-center py-12">
+          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No offers found for this listing.</h3>
+          <p className="text-gray-600">Share your listing to attract buyers!</p>
+        </div>
+      )}
+
+      {!isLoading && !error && offers.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {offers.map((offer) => (
+            <div key={offer.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Offer from {offer.buyer_first_name && offer.buyer_last_name ?
+                    `${offer.buyer_first_name} ${offer.buyer_last_name}` : `Buyer #${offer.buyer_id}`}
+                </h3>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  offer.status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : offer.status === 'accepted'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Offer Amount</p>
+                  <p className="font-semibold text-gray-900">{offer.currency} {offer.offer_price.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Quantity</p>
+                  <p className="font-semibold text-gray-900">{offer.offer_quantity.toLocaleString()} kg</p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                {offer.message || 'No message provided.'}
+              </p>
+
+              <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
+                <span>Made on {new Date(offer.created_at).toLocaleDateString()}</span>
+                <span>Offer ID: {offer.id}</span>
+              </div>
+
+              {/* Corrected logic for buyer's MyOffers view */}
+              {offer.status === 'accepted' && (
+                <button
+                  onClick={() => handleProceedToPaymentClick(offer)}
+                  className="btn-success w-full"
+                  disabled={user.complianceStatus !== 'compliant' || actionLoading === offer.id} // Disable if not compliant or loading
+                >
+                  {actionLoading === offer.id ? (
+                    <div className="loading-spinner w-4 h-4 mr-2"></div>
+                  ) : (
+                    <CreditCard className="w-4 h-4 mr-2" />
+                  )}
+                  Proceed to Payment
+                </button>
+              )}
+              {/* Removed Accept/Reject buttons from buyer's MyOffers view as they are for sellers/admins */}
+            </div>
+          ))}
+        </div>
+      )}
+      {messageBox && ( // Render MessageBox for MyOffers component's specific messages
+        <MessageBox
+          message={messageBox.message}
+          type={messageBox.type}
+          onClose={() => setMessageBox(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+// Offers For Listing Component (for Seller/Admin)
+const OffersForListing: React.FC<{
+  listingId: number;
+  user: User;
+  onBack: () => void;
+  onOfferStatusChange: () => void;
+}> = ({ listingId, user, onBack, onOfferStatusChange }) => {
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null); // ADDED: actionLoading state for this component
+  const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+
+  const fetchOffers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiCall(`/marketplace/offers/listing/${listingId}`); 
+      setOffers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch offers for this listing");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (listingId) {
+      fetchOffers();
+    } else {
+      setError('No listing selected to view offers.');
+      setIsLoading(false);
+    }
+  }, [listingId, onOfferStatusChange]);
+
+  const handleUpdateOfferStatus = async (offerId: number, status: 'accepted' | 'rejected' | 'expired' | 'completed') => {
+    setActionLoading(offerId);
+    try {
+      const response = await apiCall(`/marketplace/offers/${offerId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
+      // Update the user in the local state
+      // Assuming response.user contains the updated user object with camelCase keys
+      setMessageBox({ message: `Offer ${offerId} successfully ${status}!`, type: "success" });
+      fetchOffers(); // Re-fetch offers to update the list
+      onOfferStatusChange(); // Notify parent (App) if needed
+    } catch (err) {
+      setMessageBox({ message: `Failed to update offer status: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <button
+        onClick={onBack}
+        className="btn-secondary"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Listing
+      </button>
+
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Offers for Listing #{listingId}</h1>
+        <p className="text-gray-600 mt-2">Review offers made on your mineral listing.</p>
+      </div>
+
+      {isLoading && (
+        <div className="text-center py-12">
+          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading offers...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="alert alert-error text-center py-12">
+          <p className="text-red-600">Error: {error}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && offers.length === 0 && (
+        <div className="text-center py-12">
+          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No offers found for this listing.</h3>
+          <p className="text-gray-600">Share your listing to attract buyers!</p>
+        </div>
+      )}
+
+      {!isLoading && !error && offers.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {offers.map((offer) => (
+            <div key={offer.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Offer from {offer.buyer_first_name && offer.buyer_last_name ?
+                    `${offer.buyer_first_name} ${offer.buyer_last_name}` : `Buyer #${offer.buyer_id}`}
+                </h3>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  offer.status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : offer.status === 'accepted'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Offer Amount</p>
+                  <p className="font-semibold text-gray-900">{offer.currency} {offer.offer_price.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Quantity</p>
+                  <p className="font-semibold text-gray-900">{offer.offer_quantity.toLocaleString()} kg</p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                {offer.message || 'No message provided.'}
+              </p>
+
+              <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
+                <span>Made on {new Date(offer.created_at).toLocaleDateString()}</span>
+                <span>Offer ID: {offer.id}</span>
+              </div>
+
+              {/* Corrected logic for buyer's MyOffers view */}
+              {offer.status === 'accepted' && (
+                <button
+                  onClick={() => handleProceedToPaymentClick(offer)}
+                  className="btn-success w-full"
+                  disabled={user.complianceStatus !== 'compliant' || actionLoading === offer.id} // Disable if not compliant or loading
+                >
+                  {actionLoading === offer.id ? (
+                    <div className="loading-spinner w-4 h-4 mr-2"></div>
+                  ) : (
+                    <CreditCard className="w-4 h-4 mr-2" />
+                  )}
+                  Proceed to Payment
+                </button>
+              )}
+              {/* Removed Accept/Reject buttons from buyer's MyOffers view as they are for sellers/admins */}
+            </div>
+          ))}
+        </div>
+      )}
+      {messageBox && ( // Render MessageBox for MyOffers component's specific messages
+        <MessageBox
+          message={messageBox.message}
+          type={messageBox.type}
+          onClose={() => setMessageBox(null)}
+        />
+      )}
+    </div>
+  );
+};
 
 // Create Listing Form Component
 const CreateListingForm: React.FC<{ user: User; onListingCreated: () => void; setCurrentView: (view: any) => void }> = ({ user, onListingCreated, setCurrentView }) => {
@@ -2068,14 +2361,17 @@ const App: React.FC = () => {
       setAuthLoading(true); 
       const token = localStorage.getItem('authToken');
       const params = new URLSearchParams(window.location.search);
-      if (params.get('transaction_id') && window.location.pathname.includes('/success')) {
+      const path = window.location.pathname;
+
+      // Handle payment success/cancel redirects first
+      if (path.includes('/payment/success') && params.get('transaction_id')) {
         setCurrentView('payment-success');
-        setAuthLoading(false); 
+        setAuthLoading(false);
         return;
       }
-      if (params.get('transaction_id') && window.location.pathname.includes('/cancel')) {
+      if (path.includes('/payment/cancel') && params.get('transaction_id')) {
         setCurrentView('payment-cancel');
-        setAuthLoading(false); 
+        setAuthLoading(false);
         return;
       }
 
@@ -2268,17 +2564,15 @@ const App: React.FC = () => {
     return <LoadingSpinner message="Loading application..." />;
   }
 
-  // If not loading and no user, show login/register forms
-  if (!user) {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('transaction_id') && window.location.pathname.includes('/success')) {
-      return <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
-    }
-    if (params.get('transaction_id') && window.location.pathname.includes('/cancel')) {
-      return <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
-    }
+  // Determine the content to render based on currentView and user status
+  let contentToRender;
 
-    return isLoginView ? (
+  if (currentView === 'payment-success') {
+    contentToRender = <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
+  } else if (currentView === 'payment-cancel') {
+    contentToRender = <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
+  } else if (!user) {
+    contentToRender = isLoginView ? (
       <LoginForm
         onLogin={handleLogin}
         onSwitchToRegister={() => setIsLoginView(false)}
@@ -2289,172 +2583,179 @@ const App: React.FC = () => {
         onSwitchToLogin={() => setIsLoginView(true)}
       />
     );
+  } else {
+    // User is logged in, render main app content
+    contentToRender = (
+      <>
+        <header className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-8">
+                <button
+                  onClick={() => setCurrentView('dashboard')}
+                  className="flex items-center space-x-2 text-gray-900 hover:text-blue-600 transition-colors"
+                >
+                  <div className="bg-blue-600 w-8 h-8 rounded-lg flex items-center justify-center">
+                    <ShoppingBag className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="font-bold text-lg">Mining Marketplace</span>
+                </button>
+
+                <nav className="hidden md:flex space-x-6">
+                  <button
+                    onClick={() => setCurrentView('dashboard')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                      currentView === 'dashboard'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Home className="w-4 h-4" />
+                    <span>Dashboard</span>
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentView('listings')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                      currentView === 'listings' || currentView === 'listing-detail'
+                        ? 'bg-orange-100 text-orange-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Package className="w-4 h-4" />
+                    <span>All Listings</span>
+                  </button>
+
+                  {(user.role === 'miner' || user.role === 'admin') && (
+                    <button
+                      onClick={() => setCurrentView('my-listings')}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                        currentView === 'my-listings' || currentView === 'edit-listing' || currentView === 'create-listing'
+                          ? 'bg-green-100 text-green-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>My Listings</span>
+                    </button>
+                  )}
+
+                  {(user.role === 'buyer' || user.role === 'admin') && (
+                    <button
+                      onClick={() => setCurrentView('my-offers')}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                        currentView === 'my-offers'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      <span>My Offers</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setCurrentView('my-profile')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                      currentView === 'my-profile'
+                        ? 'bg-gray-200 text-gray-800'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <User className="w-4 h-4" />
+                    <span>My Profile</span>
+                  </button>
+                  {/* NEW: Admin Users Link */}
+                  {user.role === 'admin' && (
+                    <button
+                      onClick={() => setCurrentView('admin-users')}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                        currentView === 'admin-users'
+                          ? 'bg-red-100 text-red-700' // Admin specific color
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Admin Users</span>
+                    </button>
+                  )}
+                </nav>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="btn-secondary"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {currentView === 'dashboard' && <Dashboard user={user} setCurrentView={setCurrentView} />}
+          {currentView === 'listings' && <AllListings listings={listings} isLoading={listingsLoading} error={listingsError} handleViewListing={handleViewListing} />}
+          {currentView === 'my-listings' && <MyListings user={user} onEditListing={handleEditListing} onHandleViewOffersForListing={handleViewOffersForListing} setCurrentView={setCurrentView} onDeleteListingSuccess={handleDeleteListingSuccess} listings={listings} isLoading={listingsLoading} error={listingsError} />}
+          {currentView === 'my-offers' && <MyOffers user={user} onProceedToPayment={handleProceedToPayment} />}
+          {currentView === 'listing-detail' && selectedListing && (
+            <ListingDetail
+              listing={selectedListing}
+              onBack={handleBackToListings}
+              user={user}
+              onMakeOfferSuccess={handleMakeOfferSuccess}
+              onEditListing={handleEditListing}
+              onDeleteListing={handleDeleteListingSuccess}
+              onViewOffersForListing={handleViewOffersForListing}
+            />
+          )}
+          {currentView === "create-listing" && <CreateListingForm user={user} onListingCreated={handleListingCreated} setCurrentView={setCurrentView} />}
+          {currentView === "edit-listing" && editingListing && (
+            <EditListingForm
+              listing={editingListing}
+              user={user}
+              onListingUpdated={handleListingUpdated}
+              onCancel={handleCancelEdit}
+            />
+          )}
+          {currentView === "offers-for-listing" && selectedListing && (
+            <OffersForListing
+              listingId={selectedListing.id}
+              user={user}
+              onBack={() => setCurrentView('listing-detail')}
+              onOfferStatusChange={handleOfferStatusChange}
+            />
+          )}
+          {currentView === "my-profile" && user && (
+            <UserProfile
+              user={user}
+              onProfileUpdated={handleProfileUpdate}
+              onBack={() => setCurrentView('dashboard')}
+            />
+          )}
+          {/* NEW: Admin Users Component */}
+          {currentView === "admin-users" && user.role === 'admin' && (
+            <AdminUsers
+              currentUser={user} // Pass the logged-in admin user
+              onUserComplianceStatusUpdate={handleUserComplianceStatusUpdate}
+              onBack={() => setCurrentView('dashboard')}
+            />
+          )}
+        </main>
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                className="flex items-center space-x-2 text-gray-900 hover:text-blue-600 transition-colors"
-              >
-                <div className="bg-blue-600 w-8 h-8 rounded-lg flex items-center justify-center">
-                  <ShoppingBag className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-bold text-lg">Mining Marketplace</span>
-              </button>
-
-              <nav className="hidden md:flex space-x-6">
-                <button
-                  onClick={() => setCurrentView('dashboard')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                    currentView === 'dashboard'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Home className="w-4 h-4" />
-                  <span>Dashboard</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentView('listings')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                    currentView === 'listings' || currentView === 'listing-detail'
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Package className="w-4 h-4" />
-                  <span>All Listings</span>
-                </button>
-
-                {(user.role === 'miner' || user.role === 'admin') && (
-                  <button
-                    onClick={() => setCurrentView('my-listings')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                      currentView === 'my-listings' || currentView === 'edit-listing' || currentView === 'create-listing'
-                        ? 'bg-green-100 text-green-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>My Listings</span>
-                  </button>
-                )}
-
-                {(user.role === 'buyer' || user.role === 'admin') && (
-                  <button
-                    onClick={() => setCurrentView('my-offers')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                      currentView === 'my-offers'
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <TrendingUp className="w-4 h-4" />
-                    <span>My Offers</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => setCurrentView('my-profile')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                    currentView === 'my-profile'
-                      ? 'bg-gray-200 text-gray-800'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  <span>My Profile</span>
-                </button>
-                {/* NEW: Admin Users Link */}
-                {user.role === 'admin' && (
-                  <button
-                    onClick={() => setCurrentView('admin-users')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                      currentView === 'admin-users'
-                        ? 'bg-red-100 text-red-700' // Admin specific color
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Users className="w-4 h-4" />
-                    <span>Admin Users</span>
-                  </button>
-                )}
-              </nav>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-xs text-gray-600 capitalize">{user.role}</p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="btn-secondary"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'dashboard' && <Dashboard user={user} setCurrentView={setCurrentView} />}
-        {currentView === 'listings' && <AllListings listings={listings} isLoading={listingsLoading} error={listingsError} handleViewListing={handleViewListing} />}
-        {currentView === 'my-listings' && <MyListings user={user} onEditListing={handleEditListing} onHandleViewOffersForListing={handleViewOffersForListing} setCurrentView={setCurrentView} onDeleteListingSuccess={handleDeleteListingSuccess} listings={listings} isLoading={listingsLoading} error={listingsError} />}
-        {currentView === 'my-offers' && <MyOffers user={user} onProceedToPayment={handleProceedToPayment} />}
-        {currentView === 'listing-detail' && selectedListing && (
-          <ListingDetail
-            listing={selectedListing}
-            onBack={handleBackToListings}
-            user={user}
-            onMakeOfferSuccess={handleMakeOfferSuccess}
-            onEditListing={handleEditListing}
-            onDeleteListing={handleDeleteListingSuccess}
-            onViewOffersForListing={handleViewOffersForListing}
-          />
-        )}
-        {currentView === "create-listing" && <CreateListingForm user={user} onListingCreated={handleListingCreated} setCurrentView={setCurrentView} />}
-        {currentView === "edit-listing" && editingListing && (
-          <EditListingForm
-            listing={editingListing}
-            user={user}
-            onListingUpdated={handleListingUpdated}
-            onCancel={handleCancelEdit}
-          />
-        )}
-        {currentView === "offers-for-listing" && selectedListing && (
-          <OffersForListing
-            listingId={selectedListing.id}
-            user={user}
-            onBack={() => setCurrentView('listing-detail')}
-            onOfferStatusChange={handleOfferStatusChange}
-          />
-        )}
-        {currentView === "my-profile" && user && (
-          <UserProfile
-            user={user}
-            onProfileUpdated={handleProfileUpdate}
-            onBack={() => setCurrentView('dashboard')}
-          />
-        )}
-        {/* NEW: Admin Users Component */}
-        {currentView === "admin-users" && user.role === 'admin' && (
-          <AdminUsers
-            currentUser={user} // Pass the logged-in admin user
-            onUserComplianceStatusUpdate={handleUserComplianceStatusUpdate}
-            onBack={() => setCurrentView('dashboard')}
-          />
-        )}
-      </main>
+      {contentToRender}
       {/* MessageBox rendering at the root level of App component */}
       {messageBox && (
         <MessageBox
@@ -2526,7 +2827,7 @@ const PaymentSuccessPage: React.FC<PaymentRedirectPageProps> = ({ onBackToDashbo
             <p>Your payment for Listing **#{transaction.listing_id}** was successful.</p>
             <p className="font-semibold">Amount Paid: {transaction.currency} {transaction.final_price.toLocaleString()}</p>
             <p className="text-sm text-gray-500">Transaction ID: {transaction.id}</p>
-            <p className="text-sm text-gray-500">Status: {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}</p>
+            <p className="text-sm text-gray-500">Status: {transaction.status?.charAt(0).toUpperCase() + transaction.status?.slice(1)}</p>
           </div>
         )}
 
@@ -2598,7 +2899,7 @@ const PaymentCancelPage: React.FC<PaymentRedirectPageProps> = ({ onBackToDashboa
             <p>The payment for Listing **#{transaction.listing_id}** was canceled.</p>
             <p className="font-semibold">Amount: {transaction.currency} {transaction.final_price.toLocaleString()}</p>
             <p className="text-sm text-gray-500">Transaction ID: {transaction.id}</p>
-            <p className="text-sm text-gray-500">Status: {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}</p>
+            <p className="text-sm text-gray-500">Status: {transaction.status?.charAt(0).toUpperCase() + transaction.status?.slice(1)}</p>
           </div>
         )}
 
