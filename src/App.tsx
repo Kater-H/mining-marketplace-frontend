@@ -204,6 +204,8 @@ const LoginForm: React.FC<{
         phoneNumber: response.user.phone_number,
         complianceStatus: response.user.compliance_status, // Include compliance status
       };
+      console.log("Frontend: User data received on successful login from backend:", response.user); // DEBUG LOG
+      console.log("Frontend: Mapped user data on successful login:", loggedInUser); // DEBUG LOG
       onLogin(loggedInUser);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -941,7 +943,7 @@ const ListingDetail: React.FC<{
         {user.role === 'buyer' && user.complianceStatus !== 'compliant' && (
           <div className="alert alert-warning mt-6">
             <ShieldQuestion className="w-5 h-5 mr-2" />
-            Your account is currently **{user.complianceStatus.replace('_', ' ')}**. You must be compliant to make offers. Please update your profile.
+            Your account is currently **{(user.complianceStatus || 'unknown').replace('_', ' ')}**. You must be compliant to make offers. Please update your profile.
           </div>
         )}
 
@@ -1128,7 +1130,7 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
       onProceedToPayment(offer);
     } else {
       // Display a message if not compliant
-      alert(`You must be compliant to proceed with payment. Your current status is: ${user.complianceStatus.replace('_', ' ')}.`);
+      alert(`You must be compliant to proceed with payment. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`);
     }
   };
 
@@ -1142,7 +1144,7 @@ const MyOffers: React.FC<{ user: User; onProceedToPayment: (offer: Offer) => voi
       {user.complianceStatus !== 'compliant' && (
         <div className="alert alert-warning">
           <ShieldQuestion className="w-5 h-5 mr-2" />
-          Your account is currently **{user.complianceStatus.replace('_', ' ')}**. You must be compliant to proceed with payments. Please update your profile.
+          Your account is currently **{(user.complianceStatus || 'unknown').replace('_', ' ')}**. You must be compliant to proceed with payments. Please update your profile.
         </div>
       )}
 
@@ -1438,7 +1440,7 @@ const CreateListingForm: React.FC<{ user: User; onListingCreated: () => void; se
 
     // Frontend compliance check for sellers creating listings
     if (user.role === 'miner' && user.complianceStatus !== 'compliant') {
-      setError(`You must be compliant to create a listing. Your current status is: ${user.complianceStatus.replace('_', ' ')}.`);
+      setError(`You must be compliant to create a listing. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`); // <-- ADDED FALLBACK HERE
       setIsLoading(false);
       return;
     }
@@ -1484,7 +1486,7 @@ const CreateListingForm: React.FC<{ user: User; onListingCreated: () => void; se
       {user.role === 'miner' && user.complianceStatus !== 'compliant' && (
         <div className="alert alert-warning">
           <ShieldQuestion className="w-5 h-5 mr-2" />
-          Your account is currently **{user.complianceStatus.replace('_', ' ')}**. You must be compliant to create listings. Please update your profile.
+          Your account is currently **{(user.complianceStatus || 'unknown').replace('_', ' ')}**. You must be compliant to create listings. Please update your profile.
         </div>
       )}
 
@@ -1818,7 +1820,7 @@ const EditListingForm: React.FC<{
 
     // Frontend compliance check for sellers editing listings
     if (user.role === 'miner' && user.complianceStatus !== 'compliant') {
-      setError(`You must be compliant to edit a listing. Your current status is: ${user.complianceStatus.replace('_', ' ')}.`);
+      setError(`You must be compliant to edit a listing. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`); // <-- ADDED FALLBACK HERE
       setIsLoading(false);
       return;
     }
@@ -1860,7 +1862,7 @@ const EditListingForm: React.FC<{
       {user.role === 'miner' && user.complianceStatus !== 'compliant' && (
         <div className="alert alert-warning">
           <ShieldQuestion className="w-5 h-5 mr-2" />
-          Your account is currently **{user.complianceStatus.replace('_', ' ')}**. You must be compliant to edit listings. Please update your profile.
+          Your account is currently **{(user.complianceStatus || 'unknown').replace('_', ' ')}**. You must be compliant to edit listings. Please update your profile.
         </div>
       )}
 
@@ -2035,6 +2037,8 @@ const App: React.FC = () => {
       if (token) {
         try {
           const fetchedUser = await apiCall('/users/profile');
+          console.log("Frontend: Raw user data fetched on refresh/initial load:", fetchedUser); // ADDED DEBUG LOG
+
           const mappedUser: User = {
             id: fetchedUser.id,
             firstName: fetchedUser.first_name,
@@ -2047,6 +2051,8 @@ const App: React.FC = () => {
             phoneNumber: fetchedUser.phone_number,
             complianceStatus: fetchedUser.compliance_status || 'pending', // <-- ADDED FALLBACK HERE
           };
+          console.log("Frontend: Mapped user data after refresh/initial load:", mappedUser); // ADDED DEBUG LOG
+
           setUser(mappedUser);
           setCurrentView('dashboard');
           fetchAllListings();
@@ -2065,6 +2071,7 @@ const App: React.FC = () => {
 
 
   const handleLogin = (userData: User) => {
+    console.log("Frontend: User data received on successful login from backend (already mapped):", userData); // ADDED DEBUG LOG
     setUser(userData);
     setCurrentView('dashboard');
     fetchAllListings();
@@ -2136,7 +2143,7 @@ const App: React.FC = () => {
     }
     // Frontend compliance check before initiating payment
     if (user.complianceStatus !== 'compliant') {
-      setMessageBox({ message: `You must be compliant to proceed with payment. Your current status is: ${user.complianceStatus.replace('_', ' ')}.`, type: "warning" });
+      setMessageBox({ message: `You must be compliant to proceed with payment. Your current status is: ${(user.complianceStatus || 'unknown').replace('_', ' ')}.`, type: "warning" });
       return;
     }
 
@@ -2893,7 +2900,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
                     )}
                   </td>
                 </tr>
-              ))}
+              ))}\
             </tbody>
           </table>
         </div>
