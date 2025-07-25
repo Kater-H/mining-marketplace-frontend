@@ -2068,13 +2068,13 @@ const App: React.FC = () => {
       if (path === '/payment/success' && params.get('transaction_id')) {
         console.log("App.tsx useEffect (Auth): Detected /payment/success. Setting view.");
         setCurrentView('payment-success');
-        setAuthLoading(false); // <--- IMPORTANT: Set false here
+        setAuthLoading(false); // Set false here
         return;
       }
       if (path === '/payment/cancel' && params.get('transaction_id')) {
         console.log("App.tsx useEffect (Auth): Detected /payment/cancel. Setting view.");
         setCurrentView('payment-cancel');
-        setAuthLoading(false); // <--- IMPORTANT: Set false here
+        setAuthLoading(false); // Set false here
         return;
       }
 
@@ -2294,7 +2294,7 @@ const App: React.FC = () => {
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/success and transaction_id exists. Rendering PaymentSuccessPage.");
         contentToRender = <PaymentSuccessPage onBackToDashboard={() => { 
-          setAuthLoading(true); // Re-enable loading state
+          // Removed setAuthLoading(true) here, App's useEffect will handle it based on URL change
           setCurrentView('dashboard'); 
           window.history.replaceState({}, document.title, '/'); 
         }} />;
@@ -2307,7 +2307,7 @@ const App: React.FC = () => {
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/cancel and transaction_id exists. Rendering PaymentCancelPage.");
         contentToRender = <PaymentCancelPage onBackToDashboard={() => { 
-          setAuthLoading(true); // Re-enable loading state
+          // Removed setAuthLoading(true) here, App's useEffect will handle it based on URL change
           setCurrentView('dashboard'); 
           window.history.replaceState({}, document.title, '/'); 
         }} />;
@@ -2394,7 +2394,7 @@ const App: React.FC = () => {
                           className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
                             currentView === 'my-offers'
                               ? 'bg-purple-100 text-purple-700'
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                           }`}
                         >
                           <TrendingUp className="w-4 h-4" />
