@@ -1409,7 +1409,7 @@ const OffersForListing: React.FC<{
                     className="btn-danger flex-1"
                     disabled={actionLoading === offer.id}
                   >
-                    {actionLoading === offer.id ? 'Rejecting...' : <><X className="w-4 h-4 mr-2" /> Reject</>}
+                    {actionLoading === offer.id ? 'Rejecting...' : <><X className="w-4 h-4 mr-2" /> Reject}</>}
                   </button>
                 </div>
               )}
@@ -2274,7 +2274,7 @@ const App: React.FC = () => {
     case '/payment/success':
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/success and transaction_id exists. Rendering PaymentSuccessPage.");
-        contentToRender = <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
+        contentToRender = <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, '/'); }} />; // Corrected path to '/'
       } else {
         console.warn("App.tsx Render: Path is /payment/success but no transaction_id. Falling to default.");
         contentToRender = <p className="text-center text-red-500 text-xl py-20">Payment Success: Missing Transaction ID.</p>;
@@ -2283,7 +2283,7 @@ const App: React.FC = () => {
     case '/payment/cancel':
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/cancel and transaction_id exists. Rendering PaymentCancelPage.");
-        contentToRender = <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
+        contentToRender = <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, '/'); }} />; // Corrected path to '/'
       } else {
         console.warn("App.tsx Render: Path is /payment/cancel but no transaction_id. Falling to default.");
         contentToRender = <p className="text-center text-red-500 text-xl py-20">Payment Cancel: Missing Transaction ID.</p>;
