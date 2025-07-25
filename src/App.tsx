@@ -26,7 +26,8 @@ import {
   XCircle, // For cancel icon
   ShieldCheck, // For compliant status
   ShieldOff, // For non-compliant status
-  ShieldQuestion // For pending status
+  ShieldQuestion, // For pending status
+  EyeOff // For hide password
 } from 'lucide-react';
 
 // Types
@@ -38,10 +39,14 @@ interface User {
   role: 'buyer' | 'miner' | 'admin';
   emailVerified: boolean;
   memberSince: string; // Assuming a string date like "January 15, 2024"
-  companyName?: string;
-  phoneNumber?: string;
-  // NEW: Add complianceStatus
+  companyName?: string; // NEW: Company Name
+  phoneNumber?: string; // Existing, but ensure it's handled
+  location?: string; // NEW: User's location
   complianceStatus: 'pending' | 'compliant' | 'non_compliant'; 
+  // NEW: Buyer-specific requirements
+  preferredMineralTypes?: string[];
+  minimumPurchaseQuantity?: number;
+  requiredRegulations?: string[];
 }
 
 interface Listing {
@@ -53,12 +58,16 @@ interface Listing {
   unit: string;
   price_per_unit: number;
   currency: string;
-  location: string;
+  location: string; // Listing's location
   status: 'available' | 'pending' | 'sold' | 'canceled';
   listed_date: string;
   last_updated: string;
   created_at: string;
   updated_at: string;
+  // NEW: Seller's company name and location to display on listing
+  seller_company_name?: string;
+  seller_location?: string;
+  seller_compliance_status?: 'pending' | 'compliant' | 'non_compliant';
 }
 
 interface Offer {
@@ -190,6 +199,7 @@ const LoginForm: React.FC<{
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // NEW: State for password visibility
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,7 +226,11 @@ const LoginForm: React.FC<{
         memberSince: response.user.memberSince,     
         companyName: response.user.companyName, 
         phoneNumber: response.user.phoneNumber, 
+        location: response.user.location, // NEW
         complianceStatus: response.user.complianceStatus, 
+        preferredMineralTypes: response.user.preferredMineralTypes, // NEW
+        minimumPurchaseQuantity: response.user.minimumPurchaseQuantity, // NEW
+        requiredRegulations: response.user.requiredRegulations, // NEW
       };
       console.log("Frontend: User data received on successful login from backend:", response.user); 
       console.log("Frontend: Mapped user data on successful login:", loggedInUser); 
@@ -240,7 +254,9 @@ const LoginForm: React.FC<{
       role: 'admin',
       emailVerified: true,
       memberSince: '2023-01-01',
-      complianceStatus: 'compliant' // Demo admin is compliant
+      complianceStatus: 'compliant', // Demo admin is compliant
+      companyName: 'Admin Corp', // Demo data
+      location: 'Global', // Demo data
     });
   };
 
@@ -276,14 +292,24 @@ const LoginForm: React.FC<{
 
           <div>
             <label className="form-label">Password</label>
-            <input
-              type="password"
-              className="form-input"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"} // NEW: Toggle type
+                className="form-input pr-10" // Add padding for icon
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           <button
@@ -336,11 +362,15 @@ const RegisterForm: React.FC<{
     lastName: '',
     email: '',
     password: '',
-    role: 'buyer' as 'buyer' | 'miner' | 'admin'
+    role: 'buyer' as 'buyer' | 'miner' | 'admin',
+    companyName: '', // NEW
+    phoneNumber: '', // NEW
+    location: '', // NEW
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+  const [showPassword, setShowPassword] = useState(false); // NEW: State for password visibility
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -364,7 +394,10 @@ const RegisterForm: React.FC<{
         lastName: '',
         email: '',
         password: '',
-        role: 'buyer'
+        role: 'buyer',
+        companyName: '',
+        phoneNumber: '',
+        location: '',
       });
       setTimeout(() => {
         onRegisterSuccess();
@@ -435,14 +468,24 @@ const RegisterForm: React.FC<{
 
           <div>
             <label className="form-label">Password</label>
-            <input
-              type="password"
-              className="form-input"
-              placeholder="Create a password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"} // NEW: Toggle type
+                className="form-input pr-10" // Add padding for icon
+                placeholder="Create a password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           <div>
@@ -456,6 +499,39 @@ const RegisterForm: React.FC<{
               <option value="miner">Mineral Seller</option>
               <option value="admin">Administrator</option>
             </select>
+          </div>
+
+          {/* NEW: Company Name, Phone Number, Location for Registration */}
+          <div>
+            <label className="form-label">Company Name (Optional)</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Your company name"
+              value={formData.companyName}
+              onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="form-label">Phone Number (Optional)</label>
+            <input
+              type="tel"
+              className="form-input"
+              placeholder="e.g., +1234567890"
+              value={formData.phoneNumber}
+              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="form-label">Location (e.g., City, Country)</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="e.g., London, UK"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              required // Making location required for registration
+            />
           </div>
 
           <button
@@ -755,10 +831,27 @@ const AllListings: React.FC<{ listings: Listing[]; isLoading: boolean; error: st
                 </span>
               </div>
 
-              <div className="flex items-center text-gray-600 mb-3">
-                <MapPin className="w-4 h-4 mr-2" />
-                <span className="text-sm">{listing.location}</span>
-              </div>
+              {/* NEW: Display Seller Company and Location */}
+              {listing.seller_company_name && (
+                <div className="flex items-center text-gray-600 mb-2">
+                  <User className="w-4 h-4 mr-2" />
+                  <span className="text-sm">{listing.seller_company_name}</span>
+                </div>
+              )}
+              {listing.seller_location && (
+                <div className="flex items-center text-gray-600 mb-3">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <span className="text-sm">{listing.seller_location}</span>
+                </div>
+              )}
+              {listing.seller_compliance_status && (
+                <div className="flex items-center text-gray-600 mb-3">
+                  {listing.seller_compliance_status === 'compliant' ? <ShieldCheck className="w-4 h-4 mr-2 text-green-500" /> :
+                   listing.seller_compliance_status === 'pending' ? <ShieldQuestion className="w-4 h-4 mr-2 text-orange-500" /> :
+                   <ShieldOff className="w-4 h-4 mr-2 text-red-500" />}
+                  <span className="text-sm capitalize">Seller: {listing.seller_compliance_status.replace('_', ' ')}</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
@@ -909,6 +1002,32 @@ const ListingDetail: React.FC<{
             {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
           </span>
         </div>
+
+        {/* NEW: Display Seller Company, Location, and Compliance Status */}
+        <div className="mb-6 border-b border-gray-200 pb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Seller Information</h3>
+          {listing.seller_company_name && (
+            <div className="flex items-center text-gray-600 mb-2">
+              <User className="w-5 h-5 mr-2" />
+              <span>Company: {listing.seller_company_name}</span>
+            </div>
+          )}
+          {listing.seller_location && (
+            <div className="flex items-center text-gray-600 mb-2">
+              <MapPin className="w-5 h-5 mr-2" />
+              <span>Location: {listing.seller_location}</span>
+            </div>
+          )}
+          {listing.seller_compliance_status && (
+            <div className="flex items-center text-gray-600">
+              {listing.seller_compliance_status === 'compliant' ? <ShieldCheck className="w-5 h-5 mr-2 text-green-500" /> :
+               listing.seller_compliance_status === 'pending' ? <ShieldQuestion className="w-5 h-5 mr-2 text-orange-500" /> :
+               <ShieldOff className="w-5 h-5 mr-2 text-red-500" />}
+              <span className="capitalize">Compliance: {listing.seller_compliance_status.replace('_', ' ')}</span>
+            </div>
+          )}
+        </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Quantity & Pricing */}
@@ -1745,10 +1864,27 @@ const MyListings: React.FC<{
                 </span>
               </div>
 
-              <div className="flex items-center text-gray-600 mb-3">
-                <MapPin className="w-4 h-4 mr-2" />
-                <span className="text-sm">{listing.location}</span>
-              </div>
+              {/* NEW: Display Seller Company and Location */}
+              {listing.seller_company_name && (
+                <div className="flex items-center text-gray-600 mb-2">
+                  <User className="w-4 h-4 mr-2" />
+                  <span className="text-sm">{listing.seller_company_name}</span>
+                </div>
+              )}
+              {listing.seller_location && (
+                <div className="flex items-center text-gray-600 mb-3">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <span className="text-sm">{listing.seller_location}</span>
+                </div>
+              )}
+              {listing.seller_compliance_status && (
+                <div className="flex items-center text-gray-600 mb-3">
+                  {listing.seller_compliance_status === 'compliant' ? <ShieldCheck className="w-4 h-4 mr-2 text-green-500" /> :
+                   listing.seller_compliance_status === 'pending' ? <ShieldQuestion className="w-4 h-4 mr-2 text-orange-500" /> :
+                   <ShieldOff className="w-4 h-4 mr-2 text-red-500" />}
+                  <span className="text-sm capitalize">Seller: {listing.seller_compliance_status.replace('_', ' ')}</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
@@ -2095,7 +2231,11 @@ const App: React.FC = () => {
             memberSince: fetchedUser.memberSince,     
             companyName: fetchedUser.companyName, 
             phoneNumber: fetchedUser.phoneNumber, 
+            location: fetchedUser.location, // NEW
             complianceStatus: fetchedUser.complianceStatus || 'pending', 
+            preferredMineralTypes: fetchedUser.preferredMineralTypes || [], // NEW
+            minimumPurchaseQuantity: fetchedUser.minimumPurchaseQuantity, // NEW
+            requiredRegulations: fetchedUser.requiredRegulations || [], // NEW
           };
           console.log("Frontend: Mapped user data after refresh/initial load:", mappedUser); 
 
@@ -2144,15 +2284,10 @@ const App: React.FC = () => {
 
   const handleViewListing = async (listingId: number) => {
     try {
-      const foundListing = listings.find(l => l.id === listingId);
-      if (foundListing) {
-        setSelectedListing(foundListing);
-        setCurrentView("listing-detail");
-      } else {
-        const data = await apiCall(`/marketplace/listings/${listingId}`);
-        setSelectedListing(data);
-        setCurrentView("listing-detail");
-      }
+      // Fetch the listing again to ensure we have the latest seller info (company, location, compliance)
+      const data = await apiCall(`/marketplace/listings/${listingId}`);
+      setSelectedListing(data);
+      setCurrentView("listing-detail");
     } catch (err) {
       setMessageBox({ message: `Failed to load listing: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
       console.error("handleViewListing: Failed to load listing:", err);
@@ -2294,7 +2429,6 @@ const App: React.FC = () => {
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/success and transaction_id exists. Rendering PaymentSuccessPage.");
         contentToRender = <PaymentSuccessPage onBackToDashboard={() => { 
-          // Removed setAuthLoading(true) here, App's useEffect will handle it based on URL change
           setCurrentView('dashboard'); 
           window.history.replaceState({}, document.title, '/'); 
         }} />;
@@ -2307,7 +2441,6 @@ const App: React.FC = () => {
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/cancel and transaction_id exists. Rendering PaymentCancelPage.");
         contentToRender = <PaymentCancelPage onBackToDashboard={() => { 
-          // Removed setAuthLoading(true) here, App's useEffect will handle it based on URL change
           setCurrentView('dashboard'); 
           window.history.replaceState({}, document.title, '/'); 
         }} />;
@@ -2690,18 +2823,25 @@ interface UserProfileProps {
 }
 
 const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBack }) => {
-  const [formData, setFormData] = useState({
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
+  const [formData, setFormData] = useState<User>({
+    ...user, // Initialize with all user data
+    preferredMineralTypes: user.preferredMineralTypes || [],
+    requiredRegulations: user.requiredRegulations || [],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleArrayChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof User) => {
+    const value = e.target.value;
+    // Split by comma, trim whitespace, filter out empty strings
+    const arrayValue = value.split(',').map(item => item.trim()).filter(item => item !== '');
+    setFormData((prev) => ({ ...prev, [field]: arrayValue }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -2711,12 +2851,27 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
     setIsLoading(true);
 
     try {
+      const payload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        companyName: formData.companyName,
+        phoneNumber: formData.phoneNumber,
+        location: formData.location,
+        // Only include buyer-specific fields if the role is buyer
+        ...(user.role === 'buyer' && {
+          preferredMineralTypes: formData.preferredMineralTypes,
+          minimumPurchaseQuantity: formData.minimumPurchaseQuantity,
+          requiredRegulations: formData.requiredRegulations,
+        })
+      };
+
       const response = await apiCall('/users/profile', {
         method: 'PUT',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       setSuccessMessage('Profile updated successfully!');
-      onProfileUpdated(response.user);
+      onProfileUpdated(response.user); // Pass the updated user object from backend
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile.');
       console.error("UserProfile: Failed to update profile:", err);
@@ -2769,7 +2924,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
             <p className="text-sm text-gray-600">Member Since</p>
             <p className="font-semibold text-gray-900">{user.memberSince}</p>
           </div>
-          {/* NEW: Compliance Status Display */}
+          {/* Compliance Status Display */}
           <div className="md:col-span-2">
             <p className="text-sm text-gray-600">Compliance Status</p>
             {getComplianceStatusDisplay(user.complianceStatus)}
@@ -2819,6 +2974,83 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                 required
             />
           </div>
+          {/* NEW: Company Name, Phone Number, Location for Profile */}
+          <div>
+            <label className="form-label">Company Name (Optional)</label>
+            <input
+              type="text"
+              name="companyName"
+              className="form-input"
+              value={formData.companyName || ''}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <label className="form-label">Phone Number (Optional)</label>
+            <input
+              type="tel"
+              name="phoneNumber"
+              className="form-input"
+              value={formData.phoneNumber || ''}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <label className="form-label">Location (e.g., City, Country)</label>
+            <input
+              type="text"
+              name="location"
+              className="form-input"
+              value={formData.location || ''}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* NEW: Buyer-specific fields */}
+          {user.role === 'buyer' && (
+            <>
+              <h3 className="text-lg font-semibold text-gray-900 mt-6 pt-4 border-t border-gray-200">Buyer Preferences</h3>
+              <div>
+                <label className="form-label">Preferred Mineral Types (comma-separated)</label>
+                <input
+                  type="text"
+                  name="preferredMineralTypes"
+                  className="form-input"
+                  placeholder="e.g., Gold, Copper, Iron Ore"
+                  value={formData.preferredMineralTypes?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange(e as React.ChangeEvent<HTMLInputElement>, 'preferredMineralTypes')}
+                />
+                <p className="text-xs text-gray-500 mt-1">Separate types with commas (e.g., Gold, Copper)</p>
+              </div>
+              <div>
+                <label className="form-label">Minimum Purchase Quantity</label>
+                <input
+                  type="number"
+                  name="minimumPurchaseQuantity"
+                  className="form-input"
+                  placeholder="e.g., 100"
+                  value={formData.minimumPurchaseQuantity || ''}
+                  onChange={(e) => setFormData({ ...formData, minimumPurchaseQuantity: parseFloat(e.target.value) || undefined })}
+                  min="0"
+                  step="any"
+                />
+              </div>
+              <div>
+                <label className="form-label">Required Regulations (comma-separated)</label>
+                <input
+                  type="text"
+                  name="requiredRegulations"
+                  className="form-input"
+                  placeholder="e.g., EU_REACH_Compliant, Conflict_Mineral_Free"
+                  value={formData.requiredRegulations?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange(e as React.ChangeEvent<HTMLInputElement>, 'requiredRegulations')}
+                />
+                <p className="text-xs text-gray-500 mt-1">Separate regulations with commas</p>
+              </div>
+            </>
+          )}
+
           <button type="submit" className="btn-primary w-full" disabled={isLoading}>
             {isLoading ? (
               <div className="loading-spinner w-5 h-5 mr-2"></div>
@@ -2862,7 +3094,11 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
         memberSince: user.memberSince,     
         companyName: user.companyName, 
         phoneNumber: user.phoneNumber, 
+        location: user.location, // NEW
         complianceStatus: user.complianceStatus || 'pending', 
+        preferredMineralTypes: user.preferredMineralTypes || [], // NEW
+        minimumPurchaseQuantity: user.minimumPurchaseQuantity, // NEW
+        requiredRegulations: user.requiredRegulations || [], // NEW
       }));
       setUsers(mappedUsers);
     } catch (err) {
@@ -2965,6 +3201,12 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
                   Role
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Company
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Location
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Compliance Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2986,6 +3228,12 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                     {userItem.role}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {userItem.companyName || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {userItem.location || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {getComplianceStatusDisplay(userItem.complianceStatus)}
