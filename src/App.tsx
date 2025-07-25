@@ -503,13 +503,14 @@ const RegisterForm: React.FC<{
 
           {/* NEW: Company Name, Phone Number, Location for Registration */}
           <div>
-            <label className="form-label">Company Name (Optional)</label>
+            <label className="form-label">Company Name</label> {/* Made mandatory */}
             <input
               type="text"
               className="form-input"
               placeholder="Your company name"
               value={formData.companyName}
               onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+              required {/* Made mandatory */}
             />
           </div>
           <div>
@@ -2070,7 +2071,7 @@ const EditListingForm: React.FC<{
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="form-label">Quantity ({formData.unit})</label>
+            <label className="form-label">Quantity</label>
             <input
               type="number"
               name="quantity"
@@ -2084,7 +2085,7 @@ const EditListingForm: React.FC<{
             />
           </div>
           <div>
-            <label className="form-label">Price per Unit ({formData.currency})</label>
+            <label className="form-label">Price per Unit</label>
             <input
               type="number"
               name="pricePerUnit"
@@ -2098,18 +2099,17 @@ const EditListingForm: React.FC<{
             />
           </div>
           <div>
-            <label className="form-label">Status</label>
+            <label className="form-label">Currency</label>
             <select
-              name="status"
+              name="currency"
               className="form-input"
-              value={formData.status}
+              value={formData.currency}
               onChange={handleChange}
               required
             >
-              <option value="available">Available</option>
-              <option value="pending">Pending</option>
-              <option value="sold">Sold</option>
-              <option value="canceled">Canceled</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
             </select>
           </div>
         </div>
@@ -2825,6 +2825,9 @@ interface UserProfileProps {
 const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBack }) => {
   const [formData, setFormData] = useState<User>({
     ...user, // Initialize with all user data
+    companyName: user.companyName || '', // Ensure it's a string for input value
+    location: user.location || '', // Ensure it's a string for input value
+    phoneNumber: user.phoneNumber || '', // Ensure it's a string for input value
     preferredMineralTypes: user.preferredMineralTypes || [],
     requiredRegulations: user.requiredRegulations || [],
   });
@@ -2851,27 +2854,45 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
     setIsLoading(true);
 
     try {
-      const payload = {
+      const payload: Partial<User> = { // Use Partial<User> as we're not sending all fields
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        companyName: formData.companyName,
+        companyName: formData.companyName, // Now mandatory
         phoneNumber: formData.phoneNumber,
-        location: formData.location,
-        // Only include buyer-specific fields if the role is buyer
-        ...(user.role === 'buyer' && {
-          preferredMineralTypes: formData.preferredMineralTypes,
-          minimumPurchaseQuantity: formData.minimumPurchaseQuantity,
-          requiredRegulations: formData.requiredRegulations,
-        })
+        location: formData.location, // Now mandatory
       };
+
+      // Only include buyer-specific fields if the role is buyer
+      if (user.role === 'buyer') {
+        payload.preferredMineralTypes = formData.preferredMineralTypes;
+        payload.minimumPurchaseQuantity = formData.minimumPurchaseQuantity;
+        payload.requiredRegulations = formData.requiredRegulations;
+      }
 
       const response = await apiCall('/users/profile', {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
       setSuccessMessage('Profile updated successfully!');
-      onProfileUpdated(response.user); // Pass the updated user object from backend
+      // Ensure the updated user object from the backend is correctly mapped and set
+      const updatedUser: User = {
+        id: response.user.id,
+        firstName: response.user.firstName, 
+        lastName: response.user.lastName,   
+        email: response.user.email,
+        role: response.user.role,
+        emailVerified: response.user.emailVerified, 
+        memberSince: response.user.memberSince,     
+        companyName: response.user.companyName, 
+        phoneNumber: response.user.phoneNumber, 
+        location: response.user.location, 
+        complianceStatus: response.user.complianceStatus || 'pending', 
+        preferredMineralTypes: response.user.preferredMineralTypes || [], 
+        minimumPurchaseQuantity: response.user.minimumPurchaseQuantity, 
+        requiredRegulations: response.user.requiredRegulations || [], 
+      };
+      onProfileUpdated(updatedUser); // Pass the updated user object from backend
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile.');
       console.error("UserProfile: Failed to update profile:", err);
@@ -2974,15 +2995,16 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                 required
             />
           </div>
-          {/* NEW: Company Name, Phone Number, Location for Profile */}
+          {/* Company Name, Phone Number, Location for Profile */}
           <div>
-            <label className="form-label">Company Name (Optional)</label>
+            <label className="form-label">Company Name</label> {/* Made mandatory */}
             <input
               type="text"
               name="companyName"
               className="form-input"
               value={formData.companyName || ''}
               onChange={handleChange}
+              required {/* Made mandatory */}
             />
           </div>
           <div>
@@ -3007,7 +3029,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
             />
           </div>
 
-          {/* NEW: Buyer-specific fields */}
+          {/* Buyer-specific fields */}
           {user.role === 'buyer' && (
             <>
               <h3 className="text-lg font-semibold text-gray-900 mt-6 pt-4 border-t border-gray-200">Buyer Preferences</h3>
@@ -3018,7 +3040,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                   name="preferredMineralTypes"
                   className="form-input"
                   placeholder="e.g., Gold, Copper, Iron Ore"
-                  value={formData.preferredMineralTypes?.join(', ') || ''}
+                  value={formData.preferredMineralTypes?.join(', ') || ''} // Corrected value display
                   onChange={(e) => handleArrayChange(e as React.ChangeEvent<HTMLInputElement>, 'preferredMineralTypes')}
                 />
                 <p className="text-xs text-gray-500 mt-1">Separate types with commas (e.g., Gold, Copper)</p>
@@ -3030,7 +3052,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                   name="minimumPurchaseQuantity"
                   className="form-input"
                   placeholder="e.g., 100"
-                  value={formData.minimumPurchaseQuantity || ''}
+                  value={formData.minimumPurchaseQuantity === undefined ? '' : formData.minimumPurchaseQuantity} // Handle undefined
                   onChange={(e) => setFormData({ ...formData, minimumPurchaseQuantity: parseFloat(e.target.value) || undefined })}
                   min="0"
                   step="any"
@@ -3043,7 +3065,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                   name="requiredRegulations"
                   className="form-input"
                   placeholder="e.g., EU_REACH_Compliant, Conflict_Mineral_Free"
-                  value={formData.requiredRegulations?.join(', ') || ''}
+                  value={formData.requiredRegulations?.join(', ') || ''} // Corrected value display
                   onChange={(e) => handleArrayChange(e as React.ChangeEvent<HTMLInputElement>, 'requiredRegulations')}
                 />
                 <p className="text-xs text-gray-500 mt-1">Separate regulations with commas</p>
