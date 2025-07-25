@@ -2057,7 +2057,7 @@ const App: React.FC = () => {
       setAuthLoading(true); // Ensure loading state is true at the start of auth check
       const token = localStorage.getItem('authToken');
       const params = new URLSearchParams(window.location.search);
-      const path = window.location.pathname;
+      const path = window.location.pathname; // Get path inside effect
 
       console.log("App.tsx useEffect (Auth): Initial path:", path);
       console.log("App.tsx useEffect (Auth): Transaction ID param:", params.get('transaction_id'));
@@ -2117,7 +2117,7 @@ const App: React.FC = () => {
       }
     };
     loadUserFromToken();
-  }, [fetchAllListings]);
+  }, [fetchAllListings, currentView, window.location.pathname]); // ADDED currentView, window.location.pathname
 
 
   const handleLogin = (userData: User) => {
