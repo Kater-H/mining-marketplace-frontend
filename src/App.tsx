@@ -110,6 +110,9 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+    console.log(`apiCall: Sending token for ${endpoint.split('?')[0]}`); // Log when token is sent
+  } else {
+    console.log(`apiCall: No token found for ${endpoint.split('?')[0]}`); // Log when no token is found
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -119,6 +122,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Network error or malformed JSON response' }));
+    console.error(`apiCall Error for ${endpoint}: HTTP ${response.status}`, errorData); // Log error details
     throw new Error(errorData.message || `HTTP ${response.status} Error`);
   }
 
@@ -199,6 +203,8 @@ const LoginForm: React.FC<{
       });
 
       localStorage.setItem('authToken', response.token);
+      console.log("LoginForm: Token stored in localStorage:", response.token ? "YES" : "NO");
+
 
       const loggedInUser: User = {
         id: response.user.id,
@@ -217,6 +223,7 @@ const LoginForm: React.FC<{
       onLogin(loggedInUser);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+      console.error("LoginForm: Login failed:", err);
     } finally {
       setIsLoading(false);
     }
@@ -224,6 +231,7 @@ const LoginForm: React.FC<{
 
   const handleDemoLogin = () => {
     localStorage.setItem('authToken', 'mock-admin-token-for-demo');
+    console.log("LoginForm: Demo Token stored in localStorage.");
     onLogin({
       id: 1,
       firstName: 'Demo',
@@ -364,6 +372,7 @@ const RegisterForm: React.FC<{
       }, 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
+      console.error("RegisterForm: Registration failed:", err);
     } finally {
       setIsLoading(false);
     }
@@ -1488,6 +1497,7 @@ const CreateListingForm: React.FC<{ user: User; onListingCreated: () => void; se
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create listing");
+      console.error("CreateListingForm: Failed to create listing:", err);
     } finally {
       setIsLoading(false);
     }
@@ -1667,6 +1677,7 @@ const MyListings: React.FC<{
       setMessageBox({ message: `Failed to delete listing: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
       setShowDeleteConfirm(false);
       setListingToDelete(null);
+      console.error("MyListings: Failed to delete listing:", err);
     }
   };
 
@@ -1858,6 +1869,7 @@ const EditListingForm: React.FC<{
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update listing");
+      console.error("EditListingForm: Failed to update listing:", err);
     } finally {
       setIsLoading(false);
     }
@@ -2034,6 +2046,7 @@ const App: React.FC = () => {
       setListings(data);
     } catch (err) {
       setListingsError(err instanceof Error ? err.message : "Failed to fetch all listings");
+      console.error("App: Error fetching all listings:", err);
     } finally {
       setListingsLoading(false);
     }
@@ -2049,6 +2062,7 @@ const App: React.FC = () => {
       console.log("App.tsx useEffect: Initial path:", path);
       console.log("App.tsx useEffect: Transaction ID param:", params.get('transaction_id'));
       console.log("App.tsx useEffect: Session ID param:", params.get('session_id')); // Added for debug
+      console.log("App.tsx useEffect: Current authToken in localStorage:", token ? "Present" : "Absent"); // NEW LOG
 
       // Determine initial view based on URL
       if (path === '/payment/success' && params.get('transaction_id')) {
@@ -2067,6 +2081,7 @@ const App: React.FC = () => {
       // If not a payment redirect, proceed with authentication
       if (token) {
         try {
+          console.log("App.tsx useEffect: Attempting to fetch user profile with token."); // NEW LOG
           const fetchedUser = await apiCall('/users/profile');
           console.log("Frontend: Raw user data fetched on refresh/initial load:", fetchedUser); 
 
@@ -2088,7 +2103,7 @@ const App: React.FC = () => {
           setCurrentView('dashboard');
           fetchAllListings();
         } catch (error) {
-          console.error("Failed to fetch user profile with existing token:", error);
+          console.error("App.tsx useEffect: Failed to fetch user profile with existing token. Clearing token.", error); // NEW LOG
           localStorage.removeItem('authToken');
           setUser(null);
           setCurrentView('login');
@@ -2096,6 +2111,7 @@ const App: React.FC = () => {
           setAuthLoading(false); 
         }
       } else {
+        console.log("App.tsx useEffect: No token found in localStorage. Setting view to login."); // NEW LOG
         setCurrentView('login');
         setAuthLoading(false); 
       }
@@ -2116,6 +2132,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    console.log("handleLogout: Clearing authToken from localStorage."); // NEW LOG
     setUser(null);
     setCurrentView('login');
     localStorage.removeItem('authToken');
@@ -2138,6 +2155,7 @@ const App: React.FC = () => {
       }
     } catch (err) {
       setMessageBox({ message: `Failed to load listing: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
+      console.error("handleViewListing: Failed to load listing:", err);
     }
   };
 
@@ -2692,6 +2710,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
       onProfileUpdated(response.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile.');
+      console.error("UserProfile: Failed to update profile:", err);
     } finally {
       setIsLoading(false);
     }
@@ -2839,6 +2858,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
       setUsers(mappedUsers);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch users.');
+      console.error("AdminUsers: Failed to fetch all users:", err);
     } finally {
       setIsLoading(false);
     }
@@ -2871,6 +2891,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
       setMessageBox({ message: `User ${userId}'s status updated to ${newStatus}.`, type: "success" });
     } catch (err) {
       setMessageBox({ message: `Failed to update user status: ${err instanceof Error ? err.message : 'Unknown error'}.`, type: 'error' });
+      console.error("AdminUsers: Failed to update user status:", err);
     } finally {
       setActionLoadingUserId(null);
     }
