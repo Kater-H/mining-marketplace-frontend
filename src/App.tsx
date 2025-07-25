@@ -539,7 +539,7 @@ const Dashboard: React.FC<{ user: User; setCurrentView: (view: any) => void }> =
               <DollarSign className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <p className className="text-sm font-medium text-gray-600">Total Value</p>
+              <p className="text-sm font-medium text-gray-600">Total Value</p>
               <p className="text-2xl font-bold text-gray-900">$11.8K</p>
             </div>
           </div>
@@ -1394,27 +1394,30 @@ const OffersForListing: React.FC<{
                 <span>Offer ID: {offer.id}</span>
               </div>
 
-              {/* Corrected logic for buyer's MyOffers view */}
-              {offer.status === 'accepted' && (
-                <button
-                  onClick={() => handleProceedToPaymentClick(offer)}
-                  className="btn-success w-full"
-                  disabled={user.complianceStatus !== 'compliant' || actionLoading === offer.id} // Disable if not compliant or loading
-                >
-                  {actionLoading === offer.id ? (
-                    <div className="loading-spinner w-4 h-4 mr-2"></div>
-                  ) : (
-                    <CreditCard className="w-4 h-4 mr-2" />
-                  )}
-                  Proceed to Payment
-                </button>
+              {/* Action buttons for seller/admin */}
+              {offer.status === 'pending' && (user.role === 'miner' || user.role === 'admin') && (
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => handleUpdateOfferStatus(offer.id, 'accepted')}
+                    className="btn-success flex-1"
+                    disabled={actionLoading === offer.id}
+                  >
+                    {actionLoading === offer.id ? 'Accepting...' : <><Check className="w-4 h-4 mr-2" /> Accept</>}
+                  </button>
+                  <button
+                    onClick={() => handleUpdateOfferStatus(offer.id, 'rejected')}
+                    className="btn-danger flex-1"
+                    disabled={actionLoading === offer.id}
+                  >
+                    {actionLoading === offer.id ? 'Rejecting...' : <><X className="w-4 h-4 mr-2" /> Reject</>}
+                  </button>
+                </div>
               )}
-              {/* Removed Accept/Reject buttons from buyer's MyOffers view as they are for sellers/admins */}
             </div>
           ))}
         </div>
       )}
-      {messageBox && ( // Render MessageBox for MyOffers component's specific messages
+      {messageBox && (
         <MessageBox
           message={messageBox.message}
           type={messageBox.type}
@@ -2043,13 +2046,18 @@ const App: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       const path = window.location.pathname;
 
+      console.log("App.tsx useEffect: Initial path:", path);
+      console.log("App.tsx useEffect: Transaction ID param:", params.get('transaction_id'));
+
       // Handle payment success/cancel redirects first
       if (path.includes('/payment/success') && params.get('transaction_id')) {
+        console.log("App.tsx useEffect: Detected /payment/success. Setting view.");
         setCurrentView('payment-success');
         setAuthLoading(false);
         return;
       }
       if (path.includes('/payment/cancel') && params.get('transaction_id')) {
+        console.log("App.tsx useEffect: Detected /payment/cancel. Setting view.");
         setCurrentView('payment-cancel');
         setAuthLoading(false);
         return;
@@ -2247,11 +2255,15 @@ const App: React.FC = () => {
   // Determine the content to render based on currentView and user status
   let contentToRender;
 
+  // --- NEW: Prioritize payment success/cancel pages at the top ---
   if (currentView === 'payment-success') {
+    console.log("App.tsx Render: Rendering PaymentSuccessPage.");
     contentToRender = <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
   } else if (currentView === 'payment-cancel') {
+    console.log("App.tsx Render: Rendering PaymentCancelPage.");
     contentToRender = <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
   } else if (!user) {
+    console.log("App.tsx Render: User not logged in. Rendering Login/Register.");
     contentToRender = isLoginView ? (
       <LoginForm
         onLogin={handleLogin}
@@ -2265,6 +2277,7 @@ const App: React.FC = () => {
     );
   } else {
     // User is logged in, render main app content
+    console.log("App.tsx Render: User logged in. Rendering main app views.");
     contentToRender = (
       <>
         <header className="bg-white shadow-sm border-b border-gray-200">
