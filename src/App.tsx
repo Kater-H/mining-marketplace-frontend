@@ -2116,8 +2116,10 @@ const App: React.FC = () => {
         setAuthLoading(false); // Auth check complete
       }
     };
+    // This effect should only run once on mount, or when fetchAllListings changes
+    // The URL and currentView changes are handled by the render logic and explicit calls
     loadUserFromToken();
-  }, [fetchAllListings, currentView, window.location.pathname]); // ADDED currentView, window.location.pathname
+  }, [fetchAllListings]); // Removed currentView, window.location.pathname from dependencies
 
 
   const handleLogin = (userData: User) => {
@@ -2294,7 +2296,7 @@ const App: React.FC = () => {
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/success and transaction_id exists. Rendering PaymentSuccessPage.");
         contentToRender = <PaymentSuccessPage onBackToDashboard={() => { 
-          setAuthLoading(true); // <--- NEW: Re-enable loading state
+          setAuthLoading(true); // Re-enable loading state
           setCurrentView('dashboard'); 
           window.history.replaceState({}, document.title, '/'); 
         }} />;
@@ -2307,7 +2309,7 @@ const App: React.FC = () => {
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/cancel and transaction_id exists. Rendering PaymentCancelPage.");
         contentToRender = <PaymentCancelPage onBackToDashboard={() => { 
-          setAuthLoading(true); // <--- NEW: Re-enable loading state
+          setAuthLoading(true); // Re-enable loading state
           setCurrentView('dashboard'); 
           window.history.replaceState({}, document.title, '/'); 
         }} />;
@@ -2489,7 +2491,7 @@ const App: React.FC = () => {
                 />
               )}
               {/* NEW: Admin Users Component */}
-              {currentView === "admin-users" && user.role === 'admin' && (
+              {user.role === 'admin' && (
                 <AdminUsers
                   currentUser={user} // Pass the logged-in admin user
                   onUserComplianceStatusUpdate={handleUserComplianceStatusUpdate}
