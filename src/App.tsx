@@ -2048,21 +2048,23 @@ const App: React.FC = () => {
 
       console.log("App.tsx useEffect: Initial path:", path);
       console.log("App.tsx useEffect: Transaction ID param:", params.get('transaction_id'));
+      console.log("App.tsx useEffect: Session ID param:", params.get('session_id')); // Added for debug
 
-      // Handle payment success/cancel redirects first
-      if (path.includes('/payment/success') && params.get('transaction_id')) {
+      // Determine initial view based on URL
+      if (path === '/payment/success' && params.get('transaction_id')) {
         console.log("App.tsx useEffect: Detected /payment/success. Setting view.");
         setCurrentView('payment-success');
         setAuthLoading(false);
         return;
       }
-      if (path.includes('/payment/cancel') && params.get('transaction_id')) {
+      if (path === '/payment/cancel' && params.get('transaction_id')) {
         console.log("App.tsx useEffect: Detected /payment/cancel. Setting view.");
         setCurrentView('payment-cancel');
         setAuthLoading(false);
         return;
       }
 
+      // If not a payment redirect, proceed with authentication
       if (token) {
         try {
           const fetchedUser = await apiCall('/users/profile');
@@ -2256,195 +2258,224 @@ const App: React.FC = () => {
   let contentToRender;
 
   // --- NEW: Prioritize payment success/cancel pages at the top ---
-  if (currentView === 'payment-success') {
-    console.log("App.tsx Render: Rendering PaymentSuccessPage.");
-    contentToRender = <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
-  } else if (currentView === 'payment-cancel') {
-    console.log("App.tsx Render: Rendering PaymentCancelPage.");
-    contentToRender = <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
-  } else if (!user) {
-    console.log("App.tsx Render: User not logged in. Rendering Login/Register.");
-    contentToRender = isLoginView ? (
-      <LoginForm
-        onLogin={handleLogin}
-        onSwitchToRegister={() => setIsLoginView(false)}
-      />
-    ) : (
-      <RegisterForm
-        onRegisterSuccess={handleRegisterSuccess}
-        onSwitchToLogin={() => setIsLoginView(true)}
-      />
-    );
-  } else {
-    // User is logged in, render main app content
-    console.log("App.tsx Render: User logged in. Rendering main app views.");
-    contentToRender = (
-      <>
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-8">
-                <button
-                  onClick={() => setCurrentView('dashboard')}
-                  className="flex items-center space-x-2 text-gray-900 hover:text-blue-600 transition-colors"
-                >
-                  <div className="bg-blue-600 w-8 h-8 rounded-lg flex items-center justify-center">
-                    <ShoppingBag className="w-5 h-5 text-white" />
+  // Use window.location.pathname directly for routing
+  const currentPath = window.location.pathname;
+  const params = new URLSearchParams(window.location.search);
+  const transactionId = params.get('transaction_id');
+  const sessionId = params.get('session_id'); // Added for debug
+
+  console.log("App.tsx Render: Current Path:", currentPath);
+  console.log("App.tsx Render: Transaction ID in URL:", transactionId);
+  console.log("App.tsx Render: Session ID in URL:", sessionId); // Added for debug
+  console.log("App.tsx Render: currentView state:", currentView);
+
+
+  switch (currentPath) {
+    case '/payment/success':
+      if (transactionId) {
+        console.log("App.tsx Render: Path is /payment/success and transaction_id exists. Rendering PaymentSuccessPage.");
+        contentToRender = <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
+      } else {
+        console.warn("App.tsx Render: Path is /payment/success but no transaction_id. Falling to default.");
+        contentToRender = <p className="text-center text-red-500 text-xl py-20">Payment Success: Missing Transaction ID.</p>;
+      }
+      break;
+    case '/payment/cancel':
+      if (transactionId) {
+        console.log("App.tsx Render: Path is /payment/cancel and transaction_id exists. Rendering PaymentCancelPage.");
+        contentToRender = <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, window.location.pathname); }} />;
+      } else {
+        console.warn("App.tsx Render: Path is /payment/cancel but no transaction_id. Falling to default.");
+        contentToRender = <p className="text-center text-red-500 text-xl py-20">Payment Cancel: Missing Transaction ID.</p>;
+      }
+      break;
+    default:
+      // If not a payment redirect path, proceed with regular app routing based on `user` and `currentView` state
+      if (!user) {
+        console.log("App.tsx Render: Default path and user not logged in. Rendering Login/Register.");
+        contentToRender = isLoginView ? (
+          <LoginForm
+            onLogin={handleLogin}
+            onSwitchToRegister={() => setIsLoginView(false)}
+          />
+        ) : (
+          <RegisterForm
+            onRegisterSuccess={handleRegisterSuccess}
+            onSwitchToLogin={() => setIsLoginView(true)}
+          />
+        );
+      } else {
+        console.log("App.tsx Render: Default path and user logged in. Rendering main app views based on currentView state.");
+        contentToRender = (
+          <>
+            <header className="bg-white shadow-sm border-b border-gray-200">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between items-center h-16">
+                  <div className="flex items-center space-x-8">
+                    <button
+                      onClick={() => setCurrentView('dashboard')}
+                      className="flex items-center space-x-2 text-gray-900 hover:text-blue-600 transition-colors"
+                    >
+                      <div className="bg-blue-600 w-8 h-8 rounded-lg flex items-center justify-center">
+                        <ShoppingBag className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="font-bold text-lg">Mining Marketplace</span>
+                    </button>
+
+                    <nav className="hidden md:flex space-x-6">
+                      <button
+                        onClick={() => setCurrentView('dashboard')}
+                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                          currentView === 'dashboard'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Home className="w-4 h-4" />
+                        <span>Dashboard</span>
+                      </button>
+
+                      <button
+                        onClick={() => setCurrentView('listings')}
+                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                          currentView === 'listings' || currentView === 'listing-detail'
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Package className="w-4 h-4" />
+                        <span>All Listings</span>
+                      </button>
+
+                      {(user.role === 'miner' || user.role === 'admin') && (
+                        <button
+                          onClick={() => setCurrentView('my-listings')}
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                            currentView === 'my-listings' || currentView === 'edit-listing' || currentView === 'create-listing'
+                              ? 'bg-green-100 text-green-700'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          }`}
+                        >
+                          <ShoppingBag className="w-4 h-4" />
+                          <span>My Listings</span>
+                        </button>
+                      )}
+
+                      {(user.role === 'buyer' || user.role === 'admin') && (
+                        <button
+                          onClick={() => setCurrentView('my-offers')}
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                            currentView === 'my-offers'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          }`}
+                        >
+                          <TrendingUp className="w-4 h-4" />
+                          <span>My Offers</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setCurrentView('my-profile')}
+                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                          currentView === 'my-profile'
+                            ? 'bg-gray-200 text-gray-800'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        <User className="w-4 h-4" />
+                        <span>My Profile</span>
+                      </button>
+                      {/* NEW: Admin Users Link */}
+                      {user.role === 'admin' && (
+                        <button
+                          onClick={() => setCurrentView('admin-users')}
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                            currentView === 'admin-users'
+                              ? 'bg-red-100 text-red-700' // Admin specific color
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Users className="w-4 h-4" />
+                          <span>Admin Users</span>
+                        </button>
+                      )}
+                    </nav>
                   </div>
-                  <span className="font-bold text-lg">Mining Marketplace</span>
-                </button>
 
-                <nav className="hidden md:flex space-x-6">
-                  <button
-                    onClick={() => setCurrentView('dashboard')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                      currentView === 'dashboard'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Home className="w-4 h-4" />
-                    <span>Dashboard</span>
-                  </button>
-
-                  <button
-                    onClick={() => setCurrentView('listings')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                      currentView === 'listings' || currentView === 'listing-detail'
-                        ? 'bg-orange-100 text-orange-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Package className="w-4 h-4" />
-                    <span>All Listings</span>
-                  </button>
-
-                  {(user.role === 'miner' || user.role === 'admin') && (
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+                    </div>
                     <button
-                      onClick={() => setCurrentView('my-listings')}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                        currentView === 'my-listings' || currentView === 'edit-listing' || currentView === 'create-listing'
-                          ? 'bg-green-100 text-green-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
+                      onClick={handleLogout}
+                      className="btn-secondary"
                     >
-                      <ShoppingBag className="w-4 h-4" />
-                      <span>My Listings</span>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
                     </button>
-                  )}
-
-                  {(user.role === 'buyer' || user.role === 'admin') && (
-                    <button
-                      onClick={() => setCurrentView('my-offers')}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                        currentView === 'my-offers'
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      <TrendingUp className="w-4 h-4" />
-                      <span>My Offers</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setCurrentView('my-profile')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                      currentView === 'my-profile'
-                        ? 'bg-gray-200 text-gray-800'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <User className="w-4 h-4" />
-                    <span>My Profile</span>
-                  </button>
-                  {/* NEW: Admin Users Link */}
-                  {user.role === 'admin' && (
-                    <button
-                      onClick={() => setCurrentView('admin-users')}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                        currentView === 'admin-users'
-                          ? 'bg-red-100 text-red-700' // Admin specific color
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>Admin Users</span>
-                    </button>
-                  )}
-                </nav>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user.firstName} {user.lastName}
-                  </p>
-                  <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+                  </div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="btn-secondary"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </button>
               </div>
-            </div>
-          </div>
-        </header>
+            </header>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {currentView === 'dashboard' && <Dashboard user={user} setCurrentView={setCurrentView} />}
-          {currentView === 'listings' && <AllListings listings={listings} isLoading={listingsLoading} error={listingsError} handleViewListing={handleViewListing} />}
-          {currentView === 'my-listings' && <MyListings user={user} onEditListing={handleEditListing} onHandleViewOffersForListing={handleViewOffersForListing} setCurrentView={setCurrentView} onDeleteListingSuccess={handleDeleteListingSuccess} listings={listings} isLoading={listingsLoading} error={listingsError} />}
-          {currentView === 'my-offers' && <MyOffers user={user} onProceedToPayment={handleProceedToPayment} />}
-          {currentView === 'listing-detail' && selectedListing && (
-            <ListingDetail
-              listing={selectedListing}
-              onBack={handleBackToListings}
-              user={user}
-              onMakeOfferSuccess={handleMakeOfferSuccess}
-              onEditListing={handleEditListing}
-              onDeleteListing={handleDeleteListingSuccess}
-              onViewOffersForListing={handleViewOffersForListing}
-            />
-          )}
-          {currentView === "create-listing" && <CreateListingForm user={user} onListingCreated={handleListingCreated} setCurrentView={setCurrentView} />}
-          {currentView === "edit-listing" && editingListing && (
-            <EditListingForm
-              listing={editingListing}
-              user={user}
-              onListingUpdated={handleListingUpdated}
-              onCancel={handleCancelEdit}
-            />
-          )}
-          {currentView === "offers-for-listing" && selectedListing && (
-            <OffersForListing
-              listingId={selectedListing.id}
-              user={user}
-              onBack={() => setCurrentView('listing-detail')}
-              onOfferStatusChange={handleOfferStatusChange}
-            />
-          )}
-          {currentView === "my-profile" && user && (
-            <UserProfile
-              user={user}
-              onProfileUpdated={handleProfileUpdate}
-              onBack={() => setCurrentView('dashboard')}
-            />
-          )}
-          {/* NEW: Admin Users Component */}
-          {currentView === "admin-users" && user.role === 'admin' && (
-            <AdminUsers
-              currentUser={user} // Pass the logged-in admin user
-              onUserComplianceStatusUpdate={handleUserComplianceStatusUpdate}
-              onBack={() => setCurrentView('dashboard')}
-            />
-          )}
-        </main>
-      </>
-    );
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {currentView === 'dashboard' && <Dashboard user={user} setCurrentView={setCurrentView} />}
+              {currentView === 'listings' && <AllListings listings={listings} isLoading={listingsLoading} error={listingsError} handleViewListing={handleViewListing} />}
+              {currentView === 'my-listings' && <MyListings user={user} onEditListing={handleEditListing} onHandleViewOffersForListing={handleViewOffersForListing} setCurrentView={setCurrentView} onDeleteListingSuccess={handleDeleteListingSuccess} listings={listings} isLoading={listingsLoading} error={listingsError} />}
+              {currentView === 'my-offers' && <MyOffers user={user} onProceedToPayment={handleProceedToPayment} />}
+              {currentView === 'listing-detail' && selectedListing && (
+                <ListingDetail
+                  listing={selectedListing}
+                  onBack={handleBackToListings}
+                  user={user}
+                  onMakeOfferSuccess={handleMakeOfferSuccess}
+                  onEditListing={handleEditListing}
+                  onDeleteListing={handleDeleteListingSuccess}
+                  onViewOffersForListing={handleViewOffersForListing}
+                />
+              )}
+              {currentView === "create-listing" && <CreateListingForm user={user} onListingCreated={handleListingCreated} setCurrentView={setCurrentView} />}
+              {currentView === "edit-listing" && editingListing && (
+                <EditListingForm
+                  listing={editingListing}
+                  user={user}
+                  onListingUpdated={handleListingUpdated}
+                  onCancel={handleCancelEdit}
+                />
+              )}
+              {currentView === "offers-for-listing" && selectedListing && (
+                <OffersForListing
+                  listingId={selectedListing.id}
+                  user={user}
+                  onBack={() => setCurrentView('listing-detail')}
+                  onOfferStatusChange={handleOfferStatusChange}
+                />
+              )}
+              {currentView === "my-profile" && user && (
+                <UserProfile
+                  user={user}
+                  onProfileUpdated={handleProfileUpdate}
+                  onBack={() => setCurrentView('dashboard')}
+                />
+              )}
+              {/* NEW: Admin Users Component */}
+              {currentView === "admin-users" && user.role === 'admin' && (
+                <AdminUsers
+                  currentUser={user} // Pass the logged-in admin user
+                  onUserComplianceStatusUpdate={handleUserComplianceStatusUpdate}
+                  onBack={() => setCurrentView('dashboard')}
+                />
+              )}
+            </main>
+          </>
+        );
+      }
+      break;
   }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -2476,6 +2507,8 @@ const PaymentSuccessPage: React.FC<PaymentRedirectPageProps> = ({ onBackToDashbo
     const fetchTransactionDetails = async () => {
       const params = new URLSearchParams(window.location.search);
       const transactionId = params.get('transaction_id');
+
+      console.log("PaymentSuccessPage useEffect: transactionId from URL params:", transactionId);
 
       if (transactionId) {
         try {
@@ -2548,6 +2581,8 @@ const PaymentCancelPage: React.FC<PaymentRedirectPageProps> = ({ onBackToDashboa
     const fetchTransactionDetails = async () => {
       const params = new URLSearchParams(window.location.search);
       const transactionId = params.get('transaction_id');
+
+      console.log("PaymentCancelPage useEffect: transactionId from URL params:", transactionId);
 
       if (transactionId) {
         try {
