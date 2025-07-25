@@ -503,14 +503,14 @@ const RegisterForm: React.FC<{
 
           {/* NEW: Company Name, Phone Number, Location for Registration */}
           <div>
-            <label className="form-label">Company Name</label> {/* Made mandatory */}
+            <label className="form-label">Company Name</label>
             <input
               type="text"
               className="form-input"
               placeholder="Your company name"
               value={formData.companyName}
               onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-              required {/* Made mandatory */}
+              required
             />
           </div>
           <div>
@@ -531,7 +531,7 @@ const RegisterForm: React.FC<{
               placeholder="e.g., London, UK"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              required // Making location required for registration
+              required
             />
           </div>
 
@@ -2864,10 +2864,10 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
       };
 
       // Only include buyer-specific fields if the role is buyer
-      if (user.role === 'buyer') {
-        payload.preferredMineralTypes = formData.preferredMineralTypes;
-        payload.minimumPurchaseQuantity = formData.minimumPurchaseQuantity;
-        payload.requiredRegulations = formData.requiredRegulations;
+      if (user.role === 'buyer') { // Use the original user role for conditional logic
+          payload.preferredMineralTypes = formData.preferredMineralTypes;
+          payload.minimumPurchaseQuantity = formData.minimumPurchaseQuantity;
+          payload.requiredRegulations = formData.requiredRegulations;
       }
 
       const response = await apiCall('/users/profile', {
@@ -2997,14 +2997,14 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
           </div>
           {/* Company Name, Phone Number, Location for Profile */}
           <div>
-            <label className="form-label">Company Name</label> {/* Made mandatory */}
+            <label className="form-label">Company Name</label>
             <input
               type="text"
               name="companyName"
               className="form-input"
               value={formData.companyName || ''}
               onChange={handleChange}
-              required {/* Made mandatory */}
+              required
             />
           </div>
           <div>
@@ -3040,7 +3040,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                   name="preferredMineralTypes"
                   className="form-input"
                   placeholder="e.g., Gold, Copper, Iron Ore"
-                  value={formData.preferredMineralTypes?.join(', ') || ''} // Corrected value display
+                  value={formData.preferredMineralTypes?.join(', ') || ''}
                   onChange={(e) => handleArrayChange(e as React.ChangeEvent<HTMLInputElement>, 'preferredMineralTypes')}
                 />
                 <p className="text-xs text-gray-500 mt-1">Separate types with commas (e.g., Gold, Copper)</p>
@@ -3052,7 +3052,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                   name="minimumPurchaseQuantity"
                   className="form-input"
                   placeholder="e.g., 100"
-                  value={formData.minimumPurchaseQuantity === undefined ? '' : formData.minimumPurchaseQuantity} // Handle undefined
+                  value={formData.minimumPurchaseQuantity === undefined ? '' : formData.minimumPurchaseQuantity}
                   onChange={(e) => setFormData({ ...formData, minimumPurchaseQuantity: parseFloat(e.target.value) || undefined })}
                   min="0"
                   step="any"
@@ -3065,7 +3065,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onProfileUpdated, onBac
                   name="requiredRegulations"
                   className="form-input"
                   placeholder="e.g., EU_REACH_Compliant, Conflict_Mineral_Free"
-                  value={formData.requiredRegulations?.join(', ') || ''} // Corrected value display
+                  value={formData.requiredRegulations?.join(', ') || ''}
                   onChange={(e) => handleArrayChange(e as React.ChangeEvent<HTMLInputElement>, 'requiredRegulations')}
                 />
                 <p className="text-xs text-gray-500 mt-1">Separate regulations with commas</p>
