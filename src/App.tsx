@@ -2054,34 +2054,34 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadUserFromToken = async () => {
-      setAuthLoading(true); 
+      setAuthLoading(true); // Ensure loading state is true at the start of auth check
       const token = localStorage.getItem('authToken');
       const params = new URLSearchParams(window.location.search);
       const path = window.location.pathname;
 
-      console.log("App.tsx useEffect: Initial path:", path);
-      console.log("App.tsx useEffect: Transaction ID param:", params.get('transaction_id'));
-      console.log("App.tsx useEffect: Session ID param:", params.get('session_id')); // Added for debug
-      console.log("App.tsx useEffect: Current authToken in localStorage:", token ? "Present" : "Absent"); // NEW LOG
+      console.log("App.tsx useEffect (Auth): Initial path:", path);
+      console.log("App.tsx useEffect (Auth): Transaction ID param:", params.get('transaction_id'));
+      console.log("App.tsx useEffect (Auth): Session ID param:", params.get('session_id'));
+      console.log("App.tsx useEffect (Auth): Current authToken in localStorage:", token ? "Present" : "Absent");
 
       // Determine initial view based on URL
       if (path === '/payment/success' && params.get('transaction_id')) {
-        console.log("App.tsx useEffect: Detected /payment/success. Setting view.");
+        console.log("App.tsx useEffect (Auth): Detected /payment/success. Setting view.");
         setCurrentView('payment-success');
-        setAuthLoading(false);
+        setAuthLoading(false); // Auth check complete for this specific path
         return;
       }
       if (path === '/payment/cancel' && params.get('transaction_id')) {
-        console.log("App.tsx useEffect: Detected /payment/cancel. Setting view.");
+        console.log("App.tsx useEffect (Auth): Detected /payment/cancel. Setting view.");
         setCurrentView('payment-cancel');
-        setAuthLoading(false);
+        setAuthLoading(false); // Auth check complete for this specific path
         return;
       }
 
       // If not a payment redirect, proceed with authentication
       if (token) {
         try {
-          console.log("App.tsx useEffect: Attempting to fetch user profile with token."); // NEW LOG
+          console.log("App.tsx useEffect (Auth): Attempting to fetch user profile with token.");
           const fetchedUser = await apiCall('/users/profile');
           console.log("Frontend: Raw user data fetched on refresh/initial load:", fetchedUser); 
 
@@ -2100,20 +2100,20 @@ const App: React.FC = () => {
           console.log("Frontend: Mapped user data after refresh/initial load:", mappedUser); 
 
           setUser(mappedUser);
-          setCurrentView('dashboard');
+          setCurrentView('dashboard'); // Set dashboard if user is authenticated
           fetchAllListings();
         } catch (error) {
-          console.error("App.tsx useEffect: Failed to fetch user profile with existing token. Clearing token.", error); // NEW LOG
+          console.error("App.tsx useEffect (Auth): Failed to fetch user profile with existing token. Clearing token.", error);
           localStorage.removeItem('authToken');
           setUser(null);
-          setCurrentView('login');
+          setCurrentView('login'); // Go to login if token is invalid/expired
         } finally {
-          setAuthLoading(false); 
+          setAuthLoading(false); // Auth check complete
         }
       } else {
-        console.log("App.tsx useEffect: No token found in localStorage. Setting view to login."); // NEW LOG
+        console.log("App.tsx useEffect (Auth): No token found in localStorage. Setting view to login.");
         setCurrentView('login');
-        setAuthLoading(false); 
+        setAuthLoading(false); // Auth check complete
       }
     };
     loadUserFromToken();
@@ -2132,7 +2132,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    console.log("handleLogout: Clearing authToken from localStorage."); // NEW LOG
+    console.log("handleLogout: Clearing authToken from localStorage."); 
     setUser(null);
     setCurrentView('login');
     localStorage.removeItem('authToken');
@@ -2269,6 +2269,7 @@ const App: React.FC = () => {
 
   // NEW: Render a loading spinner while authentication is in progress
   if (authLoading) {
+    console.log("App.tsx Render: authLoading is true. Displaying spinner."); // NEW LOG
     return <LoadingSpinner message="Loading application..." />;
   }
 
@@ -2292,7 +2293,11 @@ const App: React.FC = () => {
     case '/payment/success':
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/success and transaction_id exists. Rendering PaymentSuccessPage.");
-        contentToRender = <PaymentSuccessPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, '/'); }} />; // Corrected path to '/'
+        contentToRender = <PaymentSuccessPage onBackToDashboard={() => { 
+          setAuthLoading(true); // <--- NEW: Re-enable loading state
+          setCurrentView('dashboard'); 
+          window.history.replaceState({}, document.title, '/'); 
+        }} />;
       } else {
         console.warn("App.tsx Render: Path is /payment/success but no transaction_id. Falling to default.");
         contentToRender = <p className="text-center text-red-500 text-xl py-20">Payment Success: Missing Transaction ID.</p>;
@@ -2301,7 +2306,11 @@ const App: React.FC = () => {
     case '/payment/cancel':
       if (transactionId) {
         console.log("App.tsx Render: Path is /payment/cancel and transaction_id exists. Rendering PaymentCancelPage.");
-        contentToRender = <PaymentCancelPage onBackToDashboard={() => { setCurrentView('dashboard'); window.history.replaceState({}, document.title, '/'); }} />; // Corrected path to '/'
+        contentToRender = <PaymentCancelPage onBackToDashboard={() => { 
+          setAuthLoading(true); // <--- NEW: Re-enable loading state
+          setCurrentView('dashboard'); 
+          window.history.replaceState({}, document.title, '/'); 
+        }} />;
       } else {
         console.warn("App.tsx Render: Path is /payment/cancel but no transaction_id. Falling to default.");
         contentToRender = <p className="text-center text-red-500 text-xl py-20">Payment Cancel: Missing Transaction ID.</p>;
