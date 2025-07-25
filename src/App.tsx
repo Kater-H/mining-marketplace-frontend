@@ -1409,7 +1409,7 @@ const OffersForListing: React.FC<{
                     className="btn-danger flex-1"
                     disabled={actionLoading === offer.id}
                   >
-                    {actionLoading === offer.id ? 'Rejecting...' : <><X className="w-4 h-4 mr-2" /> Reject}</>}
+                    {actionLoading === offer.id ? 'Rejecting...' : <><X className="w-4 h-4 mr-2" /> Reject</>}
                   </button>
                 </div>
               )}
@@ -2983,7 +2983,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser, onUserComplianceSt
                           className="btn-sm btn-danger"
                           disabled={actionLoadingUserId === userItem.id || userItem.complianceStatus === 'non_compliant'}
                         >
-                          {actionLoadingUserId === userItem.id ? 'Updating...' : 'Set Non-Compliant'}
+                          {actionLoadingUserId === userItem.id ? 'Updating...' : <><X className="w-4 h-4 mr-2" /> Reject</>}
                         </button>
                       </div>
                     )}
