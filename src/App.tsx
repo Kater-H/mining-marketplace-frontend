@@ -2068,13 +2068,13 @@ const App: React.FC = () => {
       if (path === '/payment/success' && params.get('transaction_id')) {
         console.log("App.tsx useEffect (Auth): Detected /payment/success. Setting view.");
         setCurrentView('payment-success');
-        setAuthLoading(false); // Auth check complete for this specific path
+        setAuthLoading(false); // <--- IMPORTANT: Set false here
         return;
       }
       if (path === '/payment/cancel' && params.get('transaction_id')) {
         console.log("App.tsx useEffect (Auth): Detected /payment/cancel. Setting view.");
         setCurrentView('payment-cancel');
-        setAuthLoading(false); // Auth check complete for this specific path
+        setAuthLoading(false); // <--- IMPORTANT: Set false here
         return;
       }
 
@@ -2116,10 +2116,8 @@ const App: React.FC = () => {
         setAuthLoading(false); // Auth check complete
       }
     };
-    // This effect should only run once on mount, or when fetchAllListings changes
-    // The URL and currentView changes are handled by the render logic and explicit calls
     loadUserFromToken();
-  }, [fetchAllListings]); // Removed currentView, window.location.pathname from dependencies
+  }, [fetchAllListings]);
 
 
   const handleLogin = (userData: User) => {
