@@ -625,7 +625,7 @@ const Dashboard: React.FC<{ user: User; setCurrentView: (view: any) => void }> =
               <DollarSign className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Value</p>
+              <p className className="text-sm font-medium text-gray-600">Total Value</p>
               <p className="text-2xl font-bold text-gray-900">$11.8K</p>
             </div>
           </div>
@@ -748,6 +748,15 @@ const Dashboard: React.FC<{ user: User; setCurrentView: (view: any) => void }> =
 const AllListings: React.FC<{ listings: Listing[]; isLoading: boolean; error: string | null; handleViewListing: (id: number) => void }> = ({ listings, isLoading, error, handleViewListing }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+
+  // NEW: Add a console log to see what listings are being received
+  useEffect(() => {
+    console.log("AllListings Component: received listings prop:", listings);
+    if (listings.length === 0 && !isLoading && !error) {
+      console.warn("AllListings Component: Listings array is empty, but not loading or in error state.");
+    }
+  }, [listings, isLoading, error]);
+
 
   const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.mineral_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -908,6 +917,15 @@ const ListingDetail: React.FC<{
   const [offerSuccess, setOfferSuccess] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // NEW: Log the listing prop received by ListingDetail
+  useEffect(() => {
+    console.log("ListingDetail Component: received listing prop:", listing);
+    if (listing && listing.id) {
+      console.log("ListingDetail Component: Listing ID:", listing.id);
+    }
+  }, [listing]);
+
+
   const handleOfferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setOfferError(null);
@@ -932,6 +950,8 @@ const ListingDetail: React.FC<{
         message: offerData.message,
         currency: listing.currency || 'USD',
       };
+
+      console.log("ListingDetail: Submitting offer with payload:", payload); // NEW LOG
 
       await apiCall("/marketplace/offers", {
         method: "POST",
@@ -2178,8 +2198,10 @@ const App: React.FC = () => {
   const fetchAllListings = useCallback(async () => {
     try {
       setListingsLoading(true);
-      const data = await apiCall("/marketplace/listings");
+      // CORRECTED: Fetch from /marketplace/listings/listings to match backend route
+      const data = await apiCall("/marketplace/listings/listings"); 
       setListings(data);
+      console.log("App: fetchAllListings successful. Listings:", data); // NEW LOG
     } catch (err) {
       setListingsError(err instanceof Error ? err.message : "Failed to fetch all listings");
       console.error("App: Error fetching all listings:", err);
@@ -2241,7 +2263,7 @@ const App: React.FC = () => {
 
           setUser(mappedUser);
           setCurrentView('dashboard'); // Set dashboard if user is authenticated
-          fetchAllListings();
+          fetchAllListings(); // Fetch listings after user is set
         } catch (error) {
           console.error("App.tsx useEffect (Auth): Failed to fetch user profile with existing token. Clearing token.", error);
           localStorage.removeItem('authToken');
@@ -2264,7 +2286,7 @@ const App: React.FC = () => {
     console.log("Frontend: User data received on successful login from backend (already mapped):", userData); 
     setUser(userData);
     setCurrentView('dashboard');
-    fetchAllListings();
+    fetchAllListings(); // Fetch listings after user is set
   };
 
   const handleRegisterSuccess = () => {
@@ -2283,11 +2305,13 @@ const App: React.FC = () => {
   };
 
   const handleViewListing = async (listingId: number) => {
+    console.log("handleViewListing: Attempting to view listing with ID:", listingId); // NEW LOG
     try {
       // Fetch the listing again to ensure we have the latest seller info (company, location, compliance)
-      const data = await apiCall(`/marketplace/listings/${listingId}`);
+      const data = await apiCall(`/marketplace/listings/listings/${listingId}`); // <--- CORRECTED: Match backend route
       setSelectedListing(data);
       setCurrentView("listing-detail");
+      console.log("handleViewListing: Successfully fetched and set selectedListing:", data); // NEW LOG
     } catch (err) {
       setMessageBox({ message: `Failed to load listing: ${err instanceof Error ? err.message : "Unknown error"}`, type: "error" });
       console.error("handleViewListing: Failed to load listing:", err);
