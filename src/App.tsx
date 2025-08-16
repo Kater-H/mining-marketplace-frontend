@@ -34,7 +34,7 @@ import {
   Info
 } from 'lucide-react';
 
-// Types
+// Types - All fields from your original code are now included
 interface User {
   id: number;
   firstName: string;
@@ -43,11 +43,11 @@ interface User {
   role: 'buyer' | 'miner' | 'admin';
   emailVerified: boolean;
   memberSince: string; // Assuming a string date like "January 15, 2024"
-  companyName?: string; // NEW: Company Name
-  phoneNumber?: string; // Existing, but ensure it's handled
-  location?: string; // NEW: User's location
-  complianceStatus: 'pending' | 'compliant' | 'non_compliant'; 
-  // NEW: Buyer-specific requirements
+  companyName?: string;
+  phoneNumber?: string;
+  location?: string;
+  complianceStatus: 'pending' | 'compliant' | 'non_compliant';
+  // Buyer-specific fields
   preferredMineralTypes?: string[];
   minimumPurchaseQuantity?: number;
   requiredRegulations?: string[];
@@ -62,13 +62,13 @@ interface Listing {
   unit: string;
   price_per_unit: number;
   currency: string;
-  location: string; // Listing's location
+  location: string;
   status: 'available' | 'pending' | 'sold' | 'canceled';
   listed_date: string;
   last_updated: string;
   created_at: string;
   updated_at: string;
-  // NEW: Seller's company name and location to display on listing
+  // Seller information fields from your original code are now included
   seller_company_name?: string;
   seller_location?: string;
   seller_compliance_status?: 'pending' | 'compliant' | 'non_compliant';
@@ -98,9 +98,9 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
   if (token) {
     headers.Authorization = `Bearer ${token}`;
-    console.log(`apiCall: Sending token for ${endpoint.split('?')[0]}`); // Log when token is sent
+    console.log(`apiCall: Sending token for ${endpoint.split('?')[0]}`);
   } else {
-    console.log(`apiCall: No token found for ${endpoint.split('?')[0]}`); // Log when no token is found
+    console.log(`apiCall: No token found for ${endpoint.split('?')[0]}`);
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -110,7 +110,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Network error or malformed JSON response' }));
-    console.error(`apiCall Error for ${endpoint}: HTTP ${response.status}`, errorData); // Log error details
+    console.error(`apiCall Error for ${endpoint}: HTTP ${response.status}`, errorData);
     throw new Error(errorData.message || `HTTP ${response.status} Error`);
   }
 
@@ -164,14 +164,37 @@ const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading..."
   </div>
 );
 
-// --- Component Definitions ---
+// --- Generic Modal Component ---
+interface ModalProps {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => {
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <h3 className="text-2xl font-bold mb-4 text-center">{title}</h3>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 // Login Form Component
 const LoginForm: React.FC<{ onLogin: (user: User) => void; onSwitchToRegister: () => void; }> = ({ onLogin, onSwitchToRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // NEW: State for password visibility
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,7 +278,7 @@ const LoginForm: React.FC<{ onLogin: (user: User) => void; onSwitchToRegister: (
   );
 };
 
-// Register Form Component
+// Register Form Component - Now includes miner-specific fields
 const RegisterForm: React.FC<{ onRegister: (user: User) => void; onSwitchToLogin: () => void; }> = ({ onRegister, onSwitchToLogin }) => {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '', role: 'buyer' as 'buyer' | 'miner', companyName: '', phoneNumber: '', location: ''
@@ -361,7 +384,7 @@ const App = () => {
   const [user, setUser] = useState<User | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
-  const [activeModal, setActiveModal] = useState<ModalType | null>(null);
+  const [activeModal, setActiveModal] = useState<'login' | 'register' | null>(null);
   const [messageBox, setMessageBox] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info'; } | null>(null);
   const [showAdminCompliance, setShowAdminCompliance] = useState(false);
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
@@ -444,7 +467,7 @@ const App = () => {
         </button>
       </div>
       <p className="text-gray-600 mb-6">Review and manage the compliance status of all users, especially miners and buyers.</p>
-      
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden shadow">
           <thead className="bg-gray-50">
@@ -501,7 +524,6 @@ const App = () => {
       </div>
     </div>
   );
-
 
   // JSX for the main application
   if (isLoading) {
@@ -572,6 +594,14 @@ const App = () => {
                       <MapPin className="w-4 h-4 mr-1" />
                       {listing.location}
                     </div>
+                    {/* Displaying company and compliance status */}
+                    <div className="flex items-center text-sm text-gray-500 mb-1">
+                      <User className="w-4 h-4 mr-1" />
+                      {listing.seller_company_name || 'N/A'}
+                      {listing.seller_compliance_status === 'compliant' && <ShieldCheck className="w-4 h-4 ml-2 text-green-500" title="Compliant" />}
+                      {listing.seller_compliance_status === 'pending' && <ShieldQuestion className="w-4 h-4 ml-2 text-yellow-500" title="Pending" />}
+                      {listing.seller_compliance_status === 'non_compliant' && <ShieldOff className="w-4 h-4 ml-2 text-red-500" title="Non-compliant" />}
+                    </div>
                     <div className="flex items-center text-sm font-semibold text-gray-700 mb-4">
                       <DollarSign className="w-4 h-4 mr-1 text-green-600" />
                       ${listing.price_per_unit} / {listing.unit}
@@ -590,7 +620,7 @@ const App = () => {
               </div>
             </div>
         )}
-        
+
         {/* Admin Compliance View */}
         {user?.role === 'admin' && showAdminCompliance && <AdminComplianceView />}
       </main>
