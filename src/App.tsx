@@ -81,7 +81,7 @@ interface Offer {
 }
 
 // Global state and utility functions
-const API_BASE_URL = 'https://mining-marketplace-backend-b4st.onrender.com/api';
+const API_BASE_URL = 'https://mining-marketplace-backend-29ub.onrender.com/api';
 
 const getAuthToken = () => localStorage.getItem('authToken');
 
