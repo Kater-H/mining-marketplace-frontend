@@ -386,28 +386,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onViewCh
               </label>
             </div>
           </div>
-          <div>
-            <label className="block text-gray-700 font-medium mb-2" htmlFor="companyName">Company Name</label>
-            <input
-              type="text"
-              id="companyName"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-gray-700 font-medium mb-2" htmlFor="companyName">Company Name</label>
-            <input
-              type="text"
-              id="companyName"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              required
-            />
-          </div>
+
+
           <div>
             <label className="block text-gray-700 font-medium mb-2" htmlFor="phoneNumber">Phone Number (Optional)</label>
             <input
@@ -1457,5 +1437,3 @@ const AllUsers: React.FC<{ users: User[]; setUsers: React.Dispatch<React.SetStat
     </div>
   );
 };
-
-export default App;
