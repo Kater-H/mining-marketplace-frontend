@@ -1457,5 +1457,3 @@ const AllUsers: React.FC<{ users: User[]; setUsers: React.Dispatch<React.SetStat
     </div>
   );
 };
-
-export default App;
